@@ -1,0 +1,527 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// User roles for RBAC
+enum UserRole {
+  ADMIN
+  PARTNER
+  AGENT
+  EMPLOYEE
+}
+
+// Permission modules
+enum PermissionModule {
+  CUSTOMERS
+  RECHARGES
+  PAYMENTS
+  FINANCE_LEDGER
+  REPORTS
+  SETTINGS
+  AUDIT_LOGS
+}
+
+// Permission actions
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+  APPROVE
+}
+
+// User model
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  email         String    @unique
+  phone         String?   @unique
+  name          String
+  password      String
+  role          UserRole
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  assignedCustomers Customer[]  @relation("AgentCustomers")
+  recharges         Recharge[]  @relation("RechargeCreatedBy")
+  payments          Payment[]   @relation("PaymentCollectedBy")
+  ledgerEntries     LedgerEntry[] @relation("LedgerCreatedBy")
+  auditLogs         AuditLog[]  @relation("AuditUser")
+  partner           Partner?
+  hotspotSales      HotspotSale[] @relation("HotspotSaleCreatedBy")
+  commissionRecords CommissionRecord[] @relation("CommissionRecordCreatedBy")
+  expenses          Expense[]   @relation("ExpenseCreatedBy")
+  
+  @@map("users")
+}
+
+// ─── Business Expenses ────────────────────────────────────────────────────────
+
+enum ExpenseType {
+  SALARY  // Employee salary
+  MISC    // Miscellaneous business expense
+}
+
+model Expense {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  type        ExpenseType
+  description String      // Employee name (SALARY) or description (MISC)
+  amount      Float
+  date        DateTime
+  month       Int         // 1-12, for monthly grouping
+  year        Int         // for monthly grouping
+  notes       String?
+
+  createdById String      @db.ObjectId
+  createdBy   User        @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("expenses")
+}
+
+// Role permissions mapping
+model RolePermission {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  role      UserRole
+  module    PermissionModule
+  actions   PermissionAction[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  @@unique([role, module])
+  @@map("role_permissions")
+}
+
+// Partner information
+model Partner {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @unique @db.ObjectId
+  sharePercent  Float     // e.g., 40 for 40%
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  payouts       PartnerPayout[]
+  
+  @@map("partners")
+}
+
+// Plan/Package model
+model Plan {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String    // e.g., "20Mbps"
+  speedLabel    String    // e.g., "20 Mbps"
+  monthlyPrice  Float
+  description   String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  customers     Customer[]
+  
+  @@map("plans")
+}
+
+// Customer model
+model Customer {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  customerId      String    @unique // Auto-generated connection ID
+  name            String
+  phone           String
+  email           String?
+  address         String?
+  area            String?
+  zone            String?
+  nid             String?   // National ID
+  
+  // Connection details
+  connectionId    String?   @unique
+  onuMac          String?
+  pppoeUsername   String?
+  
+  // Billing
+  planId          String?   @db.ObjectId
+  status          CustomerStatus @default(ACTIVE)
+  firstRechargeAt DateTime?
+  
+  // Relations
+  plan            Plan?     @relation(fields: [planId], references: [id])
+  assignedAgentId String?   @db.ObjectId
+  assignedAgent   User?     @relation("AgentCustomers", fields: [assignedAgentId], references: [id])
+  recharges       Recharge[]
+  payments        Payment[]
+  cycleCharges    CycleCharge[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("customers")
+}
+
+enum CustomerStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+// Recharge model
+model Recharge {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  customerId    String          @db.ObjectId
+  amount        Float
+  date          DateTime
+  method        PaymentMethod
+  referenceId   String?
+  status        RechargeStatus  @default(CONFIRMED)
+  notes         String?
+  attachment    String?         // File URL
+  
+  // Who created this
+  createdById   String          @db.ObjectId
+  
+  // Relations
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdBy     User            @relation("RechargeCreatedBy", fields: [createdById], references: [id])
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  @@map("recharges")
+}
+
+enum RechargeStatus {
+  CONFIRMED
+  PENDING
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  BKASH
+  NAGAD
+  BANK
+  OTHER
+}
+
+// Payment collection model
+model Payment {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  customerId      String    @db.ObjectId
+  amount          Float
+  date            DateTime
+  method          PaymentMethod
+  referenceId     String?
+  notes           String?
+  
+  // Who collected
+  collectedById   String    @db.ObjectId
+  
+  // Relations
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  collectedBy     User      @relation("PaymentCollectedBy", fields: [collectedById], references: [id])
+  allocations     PaymentAllocation[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("payments")
+}
+
+// Cycle charge (billing cycle charge)
+model CycleCharge {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  customerId      String    @db.ObjectId
+  cycleIndex      Int       // 1, 2, 3, etc.
+  cycleStart      DateTime
+  cycleEnd        DateTime
+  amount          Float     // Plan price
+  isPaid          Boolean   @default(false)
+  paidAmount      Float     @default(0)
+  remainingAmount Float     @default(0)
+  
+  // Relations
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  allocations     PaymentAllocation[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([customerId, cycleIndex])
+  @@map("cycle_charges")
+}
+
+// Payment allocation to cycle charges
+model PaymentAllocation {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  paymentId       String      @db.ObjectId
+  cycleChargeId   String      @db.ObjectId
+  amount          Float
+  
+  // Relations
+  payment         Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  cycleCharge     CycleCharge @relation(fields: [cycleChargeId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime    @default(now())
+  
+  @@map("payment_allocations")
+}
+
+// Finance ledger entry
+model LedgerEntry {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  type            LedgerType
+  category        String
+  amount          Float
+  date            DateTime
+  method          PaymentMethod?
+  vendor          String?       // For expenses
+  source          String?       // For income
+  referenceId     String?
+  notes           String?
+  attachment      String?       // File URL
+  isDeleted       Boolean       @default(false)
+  deletedAt       DateTime?
+  deletedById     String?       @db.ObjectId
+  
+  // Who created
+  createdById     String        @db.ObjectId
+  
+  // Relations
+  createdBy       User          @relation("LedgerCreatedBy", fields: [createdById], references: [id])
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("ledger_entries")
+}
+
+enum LedgerType {
+  INCOME
+  EXPENSE
+}
+
+// Monthly close snapshot
+model MonthlyClose {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  year            Int
+  month           Int       // 1-12
+  totalRevenue    Float
+  totalExpenses   Float
+  netProfit       Float
+  isLocked        Boolean   @default(false)
+  lockedAt        DateTime?
+  lockedById      String?   @db.ObjectId
+  notes           String?
+  
+  // Relations
+  partnerShares   PartnerShare[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([year, month])
+  @@map("monthly_closes")
+}
+
+// Partner share per month
+model PartnerShare {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  monthlyCloseId  String      @db.ObjectId
+  partnerId       String      @db.ObjectId
+  sharePercent    Float
+  shareAmount     Float
+  isPaid          Boolean     @default(false)
+  paidAt          DateTime?
+  
+  // Relations
+  monthlyClose    MonthlyClose @relation(fields: [monthlyCloseId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@unique([monthlyCloseId, partnerId])
+  @@map("partner_shares")
+}
+
+// Partner payout tracking
+model PartnerPayout {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  partnerId       String    @db.ObjectId
+  amount          Float
+  date            DateTime
+  method          PaymentMethod
+  referenceId     String?
+  notes           String?
+  
+  // Relations
+  partner         Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("partner_payouts")
+}
+
+// Audit log
+model AuditLog {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId
+  action          AuditAction
+  entityType      String    // e.g., "Customer", "Recharge", "Payment", "LedgerEntry"
+  entityId        String    // The ID of the affected entity
+  oldData         String?   // JSON string of old values
+  newData         String?   // JSON string of new values
+  ipAddress       String?
+  userAgent       String?
+  
+  // Relations
+  user            User      @relation("AuditUser", fields: [userId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  LOGIN
+  LOGOUT
+}
+
+// Settings
+model Setting {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  key             String    @unique
+  value           String
+  description     String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("settings")
+}
+
+// Ledger categories
+model LedgerCategory {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  type            LedgerType
+  name            String
+  isActive        Boolean   @default(true)
+  
+  @@unique([type, name])
+  @@map("ledger_categories")
+}
+
+// ─── Hotspot Cash Sales ──────────────────────────────────────────────────────
+
+enum HotspotPackage {
+  SEVEN_DAY    // ৳50 for 7 days
+  THIRTY_DAY   // ৳200 for 30 days
+}
+
+model HotspotSale {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  package         HotspotPackage
+  quantity        Int             @default(1)
+  discount        Float?          @default(0)     // optional discount applied to the sale
+  amount          Float           // final paid amount: (price × quantity) - discount
+  date            DateTime
+  customerName    String?         // buyer name
+  customerPhone   String?         // buyer phone
+  notes           String?
+
+  // Who recorded this
+  createdById     String          @db.ObjectId
+  createdBy       User            @relation("HotspotSaleCreatedBy", fields: [createdById], references: [id])
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("hotspot_sales")
+}
+
+// ─── Commission Agents & Monthly Commission Calculation ───────────────────────
+
+// A simple agent (field sales person, not a system user)
+model CommissionAgent {
+  id                String                  @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  phone             String?
+  commissionPercent Float                   // e.g. 10 for 10%
+  isActive          Boolean                 @default(true)
+  notes             String?
+
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  agentEntries      AgentCommissionEntry[]
+
+  @@map("commission_agents")
+}
+
+// One record per month — holds the pool and our own cut
+model CommissionRecord {
+  id            String                  @id @default(auto()) @map("_id") @db.ObjectId
+  year          Int
+  month         Int
+  totalPool     Float                   // total commission received
+  ourAmount     Float                   @default(0) // owner's fixed cut
+  notes         String?
+
+  createdById   String                  @db.ObjectId
+  createdBy     User                    @relation("CommissionRecordCreatedBy", fields: [createdById], references: [id])
+
+  agentEntries  AgentCommissionEntry[]
+  sources       CommissionSource[]
+
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@unique([year, month])
+  @@map("commission_records")
+}
+
+// Each individual commission source for the month
+model CommissionSource {
+  id                 String           @id @default(auto()) @map("_id") @db.ObjectId
+  commissionRecordId String           @db.ObjectId
+  description        String
+  amount             Float
+
+  commissionRecord   CommissionRecord @relation(fields: [commissionRecordId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime         @default(now())
+
+  @@map("commission_sources")
+}
+
+// Per-agent breakdown within a CommissionRecord
+model AgentCommissionEntry {
+  id                 String           @id @default(auto()) @map("_id") @db.ObjectId
+  commissionRecordId String           @db.ObjectId
+  agentId            String           @db.ObjectId
+  amount             Float            // calculated = totalPool × agent.commissionPercent / 100
+
+  commissionRecord   CommissionRecord @relation(fields: [commissionRecordId], references: [id], onDelete: Cascade)
+  agent              CommissionAgent  @relation(fields: [agentId], references: [id])
+
+  createdAt          DateTime         @default(now())
+
+  @@unique([commissionRecordId, agentId])
+  @@map("agent_commission_entries")
+}

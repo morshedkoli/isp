@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Custom Theme Patterns ─────────────────────────────────────────────── */
+
+.bg-soft-pattern {
+  background-color: #fcfcfb;
+  /* Extremely soft, warm pearl */
+  background-image: radial-gradient(#f0f0f0 1.5px, transparent 1.5px);
+  /* Barely visible, soft dots */
+  background-size: 28px 28px;
+}
