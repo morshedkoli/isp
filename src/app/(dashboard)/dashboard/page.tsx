@@ -6,9 +6,52 @@ import DashboardClient from './DashboardClient';
 
 export const dynamic = 'force-dynamic';
 
-async function getDashboardData(year: number, month: number) {
-  const now = new Date();
+type Period = { year: number; month: number };
 
+function settlementRef(year: number, month: number) {
+  return `SETTLEMENT-${year}-${String(month).padStart(2, '0')}`;
+}
+
+async function getAvailableDashboardPeriods(): Promise<Period[]> {
+  const [commissions, expenses, hotspotSales] = await Promise.all([
+    prisma.commissionRecord.findMany({
+      select: { year: true, month: true },
+    }),
+    prisma.expense.findMany({
+      select: { year: true, month: true },
+    }),
+    prisma.hotspotSale.findMany({
+      select: { date: true },
+    }),
+  ]);
+
+  const periods = new Set<string>();
+
+  for (const row of commissions) {
+    periods.add(`${row.year}-${row.month}`);
+  }
+
+  for (const row of expenses) {
+    periods.add(`${row.year}-${row.month}`);
+  }
+
+  for (const sale of hotspotSales) {
+    const date = new Date(sale.date);
+    periods.add(`${date.getFullYear()}-${date.getMonth() + 1}`);
+  }
+
+  return Array.from(periods)
+    .map((value) => {
+      const [year, month] = value.split('-').map((part) => parseInt(part, 10));
+      return { year, month };
+    })
+    .sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+}
+
+async function getDashboardData(year: number, month: number) {
   // Date constructor uses 0-indexed month (0-11)
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
@@ -21,6 +64,7 @@ async function getDashboardData(year: number, month: number) {
     hotspotAgg,
     hotspotCount,
     partners,
+    monthlySettlements,
     recentHotspot,
   ] = await Promise.all([
     // Latest saved commission record for current month
@@ -62,6 +106,11 @@ async function getDashboardData(year: number, month: number) {
       orderBy: { sharePercent: 'desc' },
     }),
 
+    prisma.partnerPayout.findMany({
+      where: { referenceId: settlementRef(year, month) },
+      select: { partnerId: true, amount: true },
+    }),
+
     // Recent hotspot sales (last 5)
     prisma.hotspotSale.findMany({
       orderBy: { date: 'desc' },
@@ -80,11 +129,22 @@ async function getDashboardData(year: number, month: number) {
   // Net = company commission − agent payouts − expenses
   const netCommission = companyCommission - agentPayouts - totalExpenses;
 
+  const paidByPartner = new Map<string, number>();
+  for (const payout of monthlySettlements) {
+    paidByPartner.set(payout.partnerId, (paidByPartner.get(payout.partnerId) ?? 0) + payout.amount);
+  }
+
   // Partner shares
   const partnerShares = partners.map(p => ({
+    id: p.id,
     name: p.user.name,
     sharePercent: p.sharePercent,
     amount: netCommission > 0 ? (netCommission * p.sharePercent) / 100 : 0,
+    paidAmount: paidByPartner.get(p.id) ?? 0,
+    remainingAmount: Math.max(
+      (netCommission > 0 ? (netCommission * p.sharePercent) / 100 : 0) - (paidByPartner.get(p.id) ?? 0),
+      0,
+    ),
   }));
 
   // Ensure the month name is based on the selected period
@@ -123,9 +183,21 @@ export default async function DashboardPage({
 
   const params = await searchParams;
   const now = new Date();
-  const year = parseInt(params.year || String(now.getFullYear()));
-  const month = parseInt(params.month || String(now.getMonth() + 1));
+  const requestedYear = parseInt(params.year || String(now.getFullYear()), 10);
+  const requestedMonth = parseInt(params.month || String(now.getMonth() + 1), 10);
 
-  const data = await getDashboardData(year, month);
-  return <DashboardClient data={data} />;
+  const availablePeriods = await getAvailableDashboardPeriods();
+  const fallbackPeriod = availablePeriods[0] ?? {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+
+  const selectedPeriod = availablePeriods.some(
+    (period) => period.year === requestedYear && period.month === requestedMonth,
+  )
+    ? { year: requestedYear, month: requestedMonth }
+    : fallbackPeriod;
+
+  const data = await getDashboardData(selectedPeriod.year, selectedPeriod.month);
+  return <DashboardClient data={data} availablePeriods={availablePeriods} />;
 }

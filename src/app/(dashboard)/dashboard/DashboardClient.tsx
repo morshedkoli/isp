@@ -21,8 +21,20 @@ interface DashboardData {
   hotspotRevenue: number;
   hotspotCount: number;
   netCommission: number;
-  partnerShares: { name: string; sharePercent: number; amount: number }[];
+  partnerShares: {
+    id: string;
+    name: string;
+    sharePercent: number;
+    amount: number;
+    paidAmount: number;
+    remainingAmount: number;
+  }[];
   recentHotspot: { id: string; package: string; amount: number; customerName?: string | null; date: string }[];
+}
+
+interface Period {
+  year: number;
+  month: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -75,7 +87,13 @@ const MONTHS = [
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function DashboardClient({ data }: { data: DashboardData }) {
+export default function DashboardClient({
+  data,
+  availablePeriods,
+}: {
+  data: DashboardData;
+  availablePeriods: Period[];
+}) {
   const router = useRouter();
 
   const {
@@ -87,12 +105,31 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   } = data;
 
   const totalAllocated = partnerShares.reduce((s, p) => s + p.amount, 0);
+  const settledCount = partnerShares.filter((p) => p.amount > 0 && p.remainingAmount <= 0).length;
+  const pendingCount = partnerShares.filter((p) => p.remainingAmount > 0).length;
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const availablePeriodList: Period[] = availablePeriods.length > 0
+    ? availablePeriods
+    : [{ year, month: monthIndex }];
+  const years = Array.from(new Set(availablePeriodList.map((p) => p.year))).sort((a, b) => b - a);
+  const monthsForYear = availablePeriodList
+    .filter((p) => p.year === year)
+    .map((p) => p.month)
+    .sort((a, b) => a - b);
 
   const handlePeriodChange = (newYear: number, newMonth: number) => {
     router.push(`/dashboard?year=${newYear}&month=${newMonth}`);
+  };
+
+  const handleYearChange = (newYear: number) => {
+    const monthForYear = availablePeriodList.find((p) => p.year === newYear && p.month === monthIndex)?.month
+      ?? availablePeriodList
+        .filter((p) => p.year === newYear)
+        .map((p) => p.month)
+        .sort((a, b) => b - a)[0]
+      ?? monthIndex;
+
+    handlePeriodChange(newYear, monthForYear);
   };
 
   return (
@@ -111,16 +148,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <Calendar size={15} className="text-slate-400" />
             <select
               value={monthIndex}
-              onChange={e => handlePeriodChange(year, parseInt(e.target.value))}
+              onChange={e => handlePeriodChange(year, parseInt(e.target.value, 10))}
               className="text-sm font-medium text-slate-700 outline-none"
             >
-              {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+              {monthsForYear.map((m) => <option key={m} value={m}>{MONTHS[m - 1]}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
             <select
               value={year}
-              onChange={e => handlePeriodChange(parseInt(e.target.value), monthIndex)}
+              onChange={e => handleYearChange(parseInt(e.target.value, 10))}
               className="text-sm font-medium text-slate-700 outline-none"
             >
               {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -241,7 +278,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <div className="mb-5 flex items-center gap-2">
             <Users size={18} className="text-emerald-500" />
             <h2 className="text-base font-semibold text-slate-900">Partner Distribution</h2>
-            <span className="ml-auto text-xs text-slate-400">Based on share %</span>
+            <span className="ml-auto text-xs text-slate-400">
+              {settledCount} settled · {pendingCount} pending
+            </span>
           </div>
 
           {partnerShares.length === 0 ? (
@@ -257,8 +296,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 const barWidth = partnerShares.length > 0 && netCommission > 0
                   ? Math.min((p.amount / netCommission) * 100, 100)
                   : p.sharePercent;
+                const settleHref = `/partners?settle=1&year=${year}&month=${monthIndex}`;
                 return (
-                  <div key={p.name}>
+                  <div key={p.id}>
                     <div className="mb-1.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full ${col.bg} text-xs font-bold ${col.text}`}>
@@ -268,8 +308,32 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         <span className={`rounded-full ${col.bg} px-2 py-0.5 text-xs font-semibold ${col.text}`}>
                           {p.sharePercent}%
                         </span>
+                        {p.amount <= 0 ? (
+                          <Link href={settleHref} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 hover:bg-slate-200">
+                            No payout
+                          </Link>
+                        ) : p.remainingAmount <= 0 ? (
+                          <Link href={settleHref} className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-200">
+                            Settled
+                          </Link>
+                        ) : p.paidAmount > 0 ? (
+                          <Link href={settleHref} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 hover:bg-amber-200">
+                            Partial
+                          </Link>
+                        ) : (
+                          <Link href={settleHref} className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 hover:bg-rose-200">
+                            Unpaid
+                          </Link>
+                        )}
                       </div>
-                      <span className={`text-sm font-bold ${col.text}`}>{fmt(p.amount)}</span>
+                      <div className="text-right">
+                        <p className={`text-sm font-bold ${col.text}`}>{fmt(p.amount)}</p>
+                        {p.amount > 0 && (
+                          <p className="text-[11px] text-slate-500">
+                            Paid {fmt(p.paidAmount)} · Due {fmt(p.remainingAmount)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                       <div className={`h-full rounded-full ${col.bar} transition-all`} style={{ width: `${barWidth}%` }} />

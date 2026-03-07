@@ -49,6 +49,11 @@ interface Partner {
     user: { name: string };
 }
 
+interface Period {
+    year: number;
+    month: number;
+}
+
 interface Props {
     agents: Agent[];
     partners: Partner[];
@@ -57,6 +62,7 @@ interface Props {
     month: number;
     salaryTotal: number;
     miscTotal: number;
+    availablePeriods: Period[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -76,7 +82,16 @@ const PARTNER_COLORS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CommissionsClient({ agents, partners, record, year, month, salaryTotal, miscTotal }: Props) {
+export default function CommissionsClient({
+    agents,
+    partners,
+    record,
+    year,
+    month,
+    salaryTotal,
+    miscTotal,
+    availablePeriods,
+}: Props) {
     const router = useRouter();
 
     const [tab, setTab] = useState<'calculator' | 'agents'>('calculator');
@@ -108,8 +123,14 @@ export default function CommissionsClient({ agents, partners, record, year, mont
     const [calcLoading, setCalcLoading] = useState(false);
     const [calcSaved, setCalcSaved] = useState(false);
 
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+    const availablePeriodList: Period[] = availablePeriods.length > 0
+        ? availablePeriods
+        : [{ year, month }];
+    const years = Array.from(new Set(availablePeriodList.map((p) => p.year))).sort((a, b) => b - a);
+    const monthsForYear = availablePeriodList
+        .filter((p) => p.year === year)
+        .map((p) => p.month)
+        .sort((a, b) => a - b);
 
     // Re-sync when period/record prop changes
     useEffect(() => {
@@ -213,6 +234,16 @@ export default function CommissionsClient({ agents, partners, record, year, mont
     };
 
     const handlePeriod = (y: number, m: number) => router.push(`/commissions?year=${y}&month=${m}`);
+    const handleYearChange = (newYear: number) => {
+        const monthForYear = availablePeriodList.find((p) => p.year === newYear && p.month === month)?.month
+            ?? availablePeriodList
+                .filter((p) => p.year === newYear)
+                .map((p) => p.month)
+                .sort((a, b) => b - a)[0]
+            ?? month;
+
+        handlePeriod(newYear, monthForYear);
+    };
     const activeAgents = agents.filter(a => a.isActive);
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -316,12 +347,12 @@ export default function CommissionsClient({ agents, partners, record, year, mont
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                             <Calendar size={15} className="text-slate-400" />
-                            <select value={month} onChange={e => handlePeriod(year, parseInt(e.target.value))} className="text-sm font-medium text-slate-700 outline-none">
-                                {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                            <select value={month} onChange={e => handlePeriod(year, parseInt(e.target.value, 10))} className="text-sm font-medium text-slate-700 outline-none">
+                                {monthsForYear.map((m) => <option key={m} value={m}>{MONTHS[m - 1]}</option>)}
                             </select>
                         </div>
                         <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                            <select value={year} onChange={e => handlePeriod(parseInt(e.target.value), month)} className="text-sm font-medium text-slate-700 outline-none">
+                            <select value={year} onChange={e => handleYearChange(parseInt(e.target.value, 10))} className="text-sm font-medium text-slate-700 outline-none">
                                 {years.map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
