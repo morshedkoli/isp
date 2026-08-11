@@ -70,7 +70,7 @@ export default async function PartnersPage({
       partners={partners}
       recentPayouts={recentPayouts.map((row) => ({
         id: row.id,
-        partnerName: row.partner.user.name,
+        partnerName: row.partner?.user?.name ?? 'Partner',
         amount: row.amount,
         date: row.date.toISOString(),
         method: row.method,

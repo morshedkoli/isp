@@ -1,8 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { PermissionAction, PermissionModule } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { requireSessionUser } from '@/lib/authz';
+import { requirePermission } from '@/lib/authz';
+import { logCreate, logUpdate, logDelete } from '@/lib/audit';
+import { getErrorMessage } from '@/lib/errors';
 import { HOTSPOT_PACKAGES, HotspotPackageKey } from './constants';
 
 // ─── Record a sale ────────────────────────────────────────────────────────────
@@ -17,7 +20,7 @@ export async function recordHotspotSale(data: {
     notes?: string;
 }) {
     try {
-        const user = await requireSessionUser();
+        const user = await requirePermission(PermissionModule.HOTSPOT, PermissionAction.CREATE);
 
         const pkg = HOTSPOT_PACKAGES[data.package];
         const discountAmount = data.discount || 0;
@@ -37,11 +40,17 @@ export async function recordHotspotSale(data: {
             },
         });
 
+        await logCreate(prisma, user.id, 'HotspotSale', sale.id, {
+            package: sale.package,
+            quantity: sale.quantity,
+            amount: sale.amount,
+        });
+
         revalidatePath('/hotspot');
         return { success: true, sale };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Record hotspot sale error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 }
 
@@ -60,7 +69,8 @@ export async function updateHotspotSale(
     }
 ) {
     try {
-        await requireSessionUser();
+        const user = await requirePermission(PermissionModule.HOTSPOT, PermissionAction.EDIT);
+        const old = await prisma.hotspotSale.findUnique({ where: { id } });
 
         const pkg = HOTSPOT_PACKAGES[data.package];
         const discountAmount = data.discount || 0;
@@ -80,11 +90,20 @@ export async function updateHotspotSale(
             },
         });
 
+        await logUpdate(
+            prisma,
+            user.id,
+            'HotspotSale',
+            id,
+            old ? { package: old.package, quantity: old.quantity, amount: old.amount } : {},
+            { package: sale.package, quantity: sale.quantity, amount: sale.amount }
+        );
+
         revalidatePath('/hotspot');
         return { success: true, sale };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Update hotspot sale error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 }
 
@@ -92,13 +111,23 @@ export async function updateHotspotSale(
 
 export async function deleteHotspotSale(id: string) {
     try {
-        await requireSessionUser();
+        const user = await requirePermission(PermissionModule.HOTSPOT, PermissionAction.DELETE);
+        const old = await prisma.hotspotSale.findUnique({ where: { id } });
         await prisma.hotspotSale.delete({ where: { id } });
+
+        await logDelete(
+            prisma,
+            user.id,
+            'HotspotSale',
+            id,
+            old ? { package: old.package, quantity: old.quantity, amount: old.amount } : {}
+        );
+
         revalidatePath('/hotspot');
         return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Delete hotspot sale error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 }
 
@@ -106,7 +135,7 @@ export async function deleteHotspotSale(id: string) {
 
 export async function getHotspotSummary(year: number, month: number) {
     try {
-        await requireSessionUser();
+        await requirePermission(PermissionModule.HOTSPOT, PermissionAction.VIEW);
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59);
 
@@ -141,8 +170,8 @@ export async function getHotspotSummary(year: number, month: number) {
                 totalRevenue: total._sum.amount ?? 0,
             },
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Get hotspot summary error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 }

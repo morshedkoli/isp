@@ -6,18 +6,18 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'ISP Admin Panel',
-  description: 'Internet Service Provider Management System',
+  title: 'GrameenWifi - Admin Panel',
+  description: 'GrameenWifi Management System · Kalikaccha, Sarail, Brahmanbaria',
   icons: {
     icon: [
-      { url: '/icon.png', type: 'image/png' },
-      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icon.png?v=2', type: 'image/png' },
+      { url: '/favicon-32.png?v=2', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16.png?v=2', sizes: '16x16', type: 'image/png' },
     ],
     apple: [
-      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/apple-icon.png?v=2', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/icon.png',
+    shortcut: '/icon.png?v=2',
   },
 };
 

@@ -86,11 +86,17 @@ async function main() {
     { role: UserRole.ADMIN, module: PermissionModule.REPORTS, actions: [PermissionAction.VIEW] },
     { role: UserRole.ADMIN, module: PermissionModule.SETTINGS, actions: [PermissionAction.VIEW, PermissionAction.EDIT] },
     { role: UserRole.ADMIN, module: PermissionModule.AUDIT_LOGS, actions: [PermissionAction.VIEW] },
+    { role: UserRole.ADMIN, module: PermissionModule.COMMISSIONS, actions: [PermissionAction.VIEW, PermissionAction.CREATE, PermissionAction.EDIT, PermissionAction.DELETE] },
+    { role: UserRole.ADMIN, module: PermissionModule.HOTSPOT, actions: [PermissionAction.VIEW, PermissionAction.CREATE, PermissionAction.EDIT, PermissionAction.DELETE] },
+    { role: UserRole.ADMIN, module: PermissionModule.EXPENSES, actions: [PermissionAction.VIEW, PermissionAction.CREATE, PermissionAction.EDIT, PermissionAction.DELETE] },
+    { role: UserRole.ADMIN, module: PermissionModule.PARTNERS, actions: [PermissionAction.VIEW, PermissionAction.CREATE, PermissionAction.EDIT, PermissionAction.DELETE, PermissionAction.APPROVE] },
 
     // Partner - limited access
     { role: UserRole.PARTNER, module: PermissionModule.CUSTOMERS, actions: [PermissionAction.VIEW] },
     { role: UserRole.PARTNER, module: PermissionModule.REPORTS, actions: [PermissionAction.VIEW] },
     { role: UserRole.PARTNER, module: PermissionModule.FINANCE_LEDGER, actions: [PermissionAction.VIEW] },
+    { role: UserRole.PARTNER, module: PermissionModule.COMMISSIONS, actions: [PermissionAction.VIEW] },
+    { role: UserRole.PARTNER, module: PermissionModule.PARTNERS, actions: [PermissionAction.VIEW] },
 
     // Agent - customer management
     { role: UserRole.AGENT, module: PermissionModule.CUSTOMERS, actions: [PermissionAction.VIEW, PermissionAction.CREATE, PermissionAction.EDIT] },
@@ -101,6 +107,8 @@ async function main() {
     { role: UserRole.EMPLOYEE, module: PermissionModule.CUSTOMERS, actions: [PermissionAction.VIEW] },
     { role: UserRole.EMPLOYEE, module: PermissionModule.RECHARGES, actions: [PermissionAction.VIEW] },
     { role: UserRole.EMPLOYEE, module: PermissionModule.PAYMENTS, actions: [PermissionAction.VIEW] },
+    { role: UserRole.EMPLOYEE, module: PermissionModule.HOTSPOT, actions: [PermissionAction.VIEW, PermissionAction.CREATE] },
+    { role: UserRole.EMPLOYEE, module: PermissionModule.EXPENSES, actions: [PermissionAction.VIEW] },
   ];
 
   for (const rp of rolePermissions) {

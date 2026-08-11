@@ -1,107 +1,20 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { randomBytes } from 'crypto';
+import { PermissionAction, PermissionModule } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { requireSessionUser } from '@/lib/authz';
+import { requirePermission } from '@/lib/authz';
 import { logCreate, logUpdate } from '@/lib/audit';
+import { getErrorMessage } from '@/lib/errors';
+import { calculateMonthlyPartnerSettlement, settlementRef } from '@/lib/settlement';
 import bcrypt from 'bcryptjs';
 
 const PAYMENT_METHODS = ['CASH', 'BKASH', 'NAGAD', 'BANK', 'OTHER'] as const;
 type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-function getErrorMessage(error: unknown) {
-    return error instanceof Error ? error.message : 'Unknown error';
-}
-
 function isPaymentMethod(value: string): value is PaymentMethod {
     return (PAYMENT_METHODS as readonly string[]).includes(value);
-}
-
-function settlementRef(year: number, month: number) {
-    return `SETTLEMENT-${year}-${String(month).padStart(2, '0')}`;
-}
-
-async function calculateMonthlyPartnerSettlement(year: number, month: number) {
-    const startOfMonth = new Date(year, month - 1, 1);
-    const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-
-    const [
-        commissionRecord,
-        salaryAgg,
-        miscAgg,
-        partners,
-        existingSettlements,
-    ] = await Promise.all([
-        prisma.commissionRecord.findFirst({
-            where: { year, month },
-            orderBy: { createdAt: 'desc' },
-            include: { agentEntries: true },
-        }),
-        prisma.expense.aggregate({
-            where: { year, month, type: 'SALARY' },
-            _sum: { amount: true },
-        }),
-        prisma.expense.aggregate({
-            where: { year, month, type: 'MISC' },
-            _sum: { amount: true },
-        }),
-        prisma.partner.findMany({
-            where: { isActive: true },
-            include: { user: { select: { name: true } } },
-            orderBy: { sharePercent: 'desc' },
-        }),
-        prisma.partnerPayout.findMany({
-            where: {
-                referenceId: settlementRef(year, month),
-            },
-            select: {
-                partnerId: true,
-                amount: true,
-            },
-        }),
-    ]);
-
-    const companyCommission = commissionRecord?.totalPool ?? 0;
-    const agentPayouts = commissionRecord?.agentEntries.reduce((sum, entry) => sum + entry.amount, 0) ?? 0;
-    const salaryTotal = salaryAgg._sum.amount ?? 0;
-    const miscTotal = miscAgg._sum.amount ?? 0;
-    const totalExpenses = salaryTotal + miscTotal;
-    const netCommission = companyCommission - agentPayouts - totalExpenses;
-
-    const settledByPartner = new Map<string, number>();
-    for (const payout of existingSettlements) {
-        settledByPartner.set(
-            payout.partnerId,
-            (settledByPartner.get(payout.partnerId) ?? 0) + payout.amount,
-        );
-    }
-
-    const partnersWithSettlement = partners.map((partner) => {
-        const dueAmount = netCommission > 0 ? (netCommission * partner.sharePercent) / 100 : 0;
-        const paidAmount = settledByPartner.get(partner.id) ?? 0;
-        return {
-            partnerId: partner.id,
-            partnerName: partner.user.name,
-            sharePercent: partner.sharePercent,
-            dueAmount,
-            paidAmount,
-            remainingAmount: Math.max(dueAmount - paidAmount, 0),
-        };
-    });
-
-    return {
-        year,
-        month,
-        periodStart: startOfMonth,
-        periodEnd: endOfMonth,
-        companyCommission,
-        agentPayouts,
-        salaryTotal,
-        miscTotal,
-        totalExpenses,
-        netCommission,
-        partners: partnersWithSettlement,
-    };
 }
 
 export async function createPartner(data: {
@@ -110,10 +23,7 @@ export async function createPartner(data: {
     sharePercent: number;
 }) {
     try {
-        const user = await requireSessionUser();
-        if (user.role !== 'ADMIN') {
-            return { success: false, error: 'Only admins can create partners' };
-        }
+        const user = await requirePermission(PermissionModule.PARTNERS, PermissionAction.CREATE);
 
         if (data.sharePercent < 0 || data.sharePercent > 100) {
             return { success: false, error: 'Share percent must be between 0 and 100' };
@@ -123,7 +33,10 @@ export async function createPartner(data: {
         const slug = data.name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
         const uniqueSuffix = Date.now();
         const internalEmail = `partner.${slug}.${uniqueSuffix}@internal.local`;
-        const passwordHash = await bcrypt.hash(`partner_${uniqueSuffix}`, 10);
+        // Random, unguessable credential — this account is not meant to ever authenticate,
+        // but it must not be predictable in case admin-only login is ever relaxed.
+        const randomPassword = randomBytes(32).toString('hex');
+        const passwordHash = await bcrypt.hash(randomPassword, 10);
 
         const result = await prisma.$transaction(async (tx) => {
             const newUser = await tx.user.create({
@@ -166,10 +79,7 @@ export async function updatePartner(
     data: { sharePercent?: number; isActive?: boolean; name?: string; phone?: string }
 ) {
     try {
-        const user = await requireSessionUser();
-        if (user.role !== 'ADMIN') {
-            return { success: false, error: 'Only admins can update partners' };
-        }
+        const user = await requirePermission(PermissionModule.PARTNERS, PermissionAction.EDIT);
 
         const old = await prisma.partner.findUnique({
             where: { id: partnerId },
@@ -180,17 +90,21 @@ export async function updatePartner(
         if (data.sharePercent !== undefined) partnerData.sharePercent = data.sharePercent;
         if (data.isActive !== undefined) partnerData.isActive = data.isActive;
 
-        const partner = await prisma.partner.update({
-            where: { id: partnerId },
-            data: partnerData,
-        });
+        const partner = await prisma.$transaction(async (tx) => {
+            const updatedPartner = await tx.partner.update({
+                where: { id: partnerId },
+                data: partnerData,
+            });
 
-        if (data.name !== undefined || data.phone !== undefined) {
-            const userUpdate: { name?: string; phone?: string } = {};
-            if (data.name) userUpdate.name = data.name;
-            if (data.phone !== undefined) userUpdate.phone = data.phone;
-            await prisma.user.update({ where: { id: partner.userId }, data: userUpdate });
-        }
+            if (data.name !== undefined || data.phone !== undefined) {
+                const userUpdate: { name?: string; phone?: string } = {};
+                if (data.name) userUpdate.name = data.name;
+                if (data.phone !== undefined) userUpdate.phone = data.phone;
+                await tx.user.update({ where: { id: updatedPartner.userId }, data: userUpdate });
+            }
+
+            return updatedPartner;
+        });
 
         await logUpdate(prisma, user.id, 'Partner', partnerId, old || {}, data);
 
@@ -211,10 +125,7 @@ export async function createPartnerPayout(data: {
     notes?: string;
 }) {
     try {
-        const user = await requireSessionUser();
-        if (user.role !== 'ADMIN') {
-            return { success: false, error: 'Only admins can record partner payouts' };
-        }
+        const user = await requirePermission(PermissionModule.PARTNERS, PermissionAction.APPROVE);
 
         const amount = Number(data.amount);
         if (!amount || amount <= 0) {
@@ -247,6 +158,12 @@ export async function createPartnerPayout(data: {
             },
         });
 
+        await logCreate(prisma, user.id, 'PartnerPayout', payout.id, {
+            partnerId: data.partnerId,
+            amount,
+            method,
+        });
+
         revalidatePath('/partners');
         revalidatePath('/dashboard');
         return { success: true, payout };
@@ -258,7 +175,7 @@ export async function createPartnerPayout(data: {
 
 export async function getMonthlyPartnerSettlement(year: number, month: number) {
     try {
-        await requireSessionUser();
+        await requirePermission(PermissionModule.PARTNERS, PermissionAction.VIEW);
         if (year < 2000 || month < 1 || month > 12) {
             return { success: false, error: 'Invalid period' };
         }
@@ -284,10 +201,7 @@ export async function settlePartnerMonthlyCommission(data: {
     notes?: string;
 }) {
     try {
-        const user = await requireSessionUser();
-        if (user.role !== 'ADMIN') {
-            return { success: false, error: 'Only admins can settle monthly commission' };
-        }
+        const user = await requirePermission(PermissionModule.PARTNERS, PermissionAction.APPROVE);
 
         if (!isPaymentMethod(data.method)) {
             return { success: false, error: 'Invalid payment method' };
@@ -323,15 +237,47 @@ export async function settlePartnerMonthlyCommission(data: {
         if (data.notes?.trim()) noteParts.push(data.notes.trim());
         const note = noteParts.join(' - ');
 
-        const payout = await prisma.partnerPayout.create({
-            data: {
-                partnerId: partnerRow.partnerId,
-                amount: partnerRow.remainingAmount,
-                date: paymentDate,
-                method,
-                referenceId,
-                notes: note,
-            },
+        // Re-check for an existing settlement payout and create the new one inside a single
+        // transaction, so two concurrent settle requests for the same partner/period can't
+        // both slip past the "already settled" check and double-pay.
+        const payout = await prisma.$transaction(async (tx) => {
+            const existingSettlementPayouts = await tx.partnerPayout.findMany({
+                where: {
+                    partnerId: partnerRow.partnerId,
+                    isSettlement: true,
+                    settlementYear: data.year,
+                    settlementMonth: data.month,
+                },
+                select: { amount: true },
+            });
+            const alreadyPaid = existingSettlementPayouts.reduce((sum, p) => sum + p.amount, 0);
+            const remaining = partnerRow.dueAmount - alreadyPaid;
+            if (remaining <= 0) {
+                throw new Error(`${partnerRow.partnerName} is already settled for this month`);
+            }
+
+            return tx.partnerPayout.create({
+                data: {
+                    partnerId: partnerRow.partnerId,
+                    amount: remaining,
+                    date: paymentDate,
+                    method,
+                    referenceId,
+                    notes: note,
+                    isSettlement: true,
+                    settlementYear: data.year,
+                    settlementMonth: data.month,
+                },
+            });
+        });
+
+        await logCreate(prisma, user.id, 'PartnerPayout', payout.id, {
+            partnerId: partnerRow.partnerId,
+            partnerName: partnerRow.partnerName,
+            amount: payout.amount,
+            year: data.year,
+            month: data.month,
+            isSettlement: true,
         });
 
         revalidatePath('/partners');
@@ -339,7 +285,7 @@ export async function settlePartnerMonthlyCommission(data: {
         return {
             success: true,
             payout,
-            settledAmount: partnerRow.remainingAmount,
+            settledAmount: payout.amount,
             partnerName: partnerRow.partnerName,
             referenceId,
         };

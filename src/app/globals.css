@@ -1,36 +1,27 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f7faf7;
+  color: #171c18;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 /* ── Custom Theme Patterns ─────────────────────────────────────────────── */
 
 .bg-soft-pattern {
-  background-color: #fcfcfb;
-  /* Extremely soft, warm pearl */
-  background-image: radial-gradient(#f0f0f0 1.5px, transparent 1.5px);
-  /* Barely visible, soft dots */
+  background-color: #f7faf7;
+  /* Soft pearl with subtle green tint */
+  background-image: radial-gradient(rgba(16, 185, 129, 0.08) 1.5px, transparent 1.5px);
+  /* Soft emerald dots */
   background-size: 28px 28px;
+}
+
+.emerald-glow {
+  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.25);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(16, 185, 129, 0.08);
 }

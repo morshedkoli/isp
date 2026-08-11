@@ -47,31 +47,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
-      {/* Background Pattern */}
-      <div className="fixed inset-0 opacity-30">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+    <div className="relative min-h-screen bg-gradient-to-br from-emerald-950 via-teal-950 to-stone-950 flex items-center justify-center p-4">
+      {/* Ambient Radial Lights */}
+      <div className="fixed inset-0 pointer-events-none opacity-40">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-500/15 rounded-full blur-3xl" />
       </div>
 
       {/* Login Card */}
-      <div className="relative w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-xl shadow-indigo-500/20">
-            <Wifi className="h-8 w-8 text-indigo-600" />
+          <div className="mx-auto mb-4 relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-emerald-950 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/20">
+            <img src="/logo.png" alt="GrameenWifi Logo" className="h-full w-full object-cover" />
           </div>
-          <h1 className="text-2xl font-bold text-white">ISP Admin Panel</h1>
-          <p className="mt-2 text-sm text-slate-400">Sign in to access your dashboard</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">GrameenWifi</h1>
+          <p className="mt-1 text-sm font-medium text-emerald-300/80">Kalikaccha, Sarail, Brahmanbaria</p>
+          <p className="mt-1 text-xs text-emerald-200/50">Sign in to access network management panel</p>
         </div>
 
         {/* Card */}
-        <div className="overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="overflow-hidden rounded-2xl bg-white/95 backdrop-blur-xl shadow-[0_24px_64px_-16px_rgba(0,0,0,0.5)] ring-1 ring-white/20">
           <div className="p-8">
             {error && (
-              <div className="mb-6 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
-                <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <div className="mb-6 flex items-center gap-2 rounded-xl bg-rose-50/90 border border-rose-200 px-4 py-3 text-sm text-rose-700 shadow-sm">
+                <div className="h-2 w-2 rounded-full bg-rose-500" />
                 {error}
               </div>
             )}
@@ -79,48 +79,48 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               {/* Email */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-stone-700">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Mail className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />
                   <input
                     {...register('email')}
                     type="email"
                     autoComplete="email"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-emerald-900/10 bg-emerald-50/20 py-2.5 pl-11 pr-4 text-stone-900 placeholder-stone-400 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/15"
                     placeholder="admin@example.com"
                   />
                 </div>
                 {errors.email && (
-                  <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+                  <p className="mt-1 text-xs text-rose-500 font-medium">{errors.email.message}</p>
                 )}
               </div>
 
               {/* Password */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-stone-700">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />
                   <input
                     {...register('password')}
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-emerald-900/10 bg-emerald-50/20 py-2.5 pl-11 pr-11 text-stone-900 placeholder-stone-400 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/15"
                     placeholder="Enter your password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-700 transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+                  <p className="mt-1 text-xs text-rose-500 font-medium">{errors.password.message}</p>
                 )}
               </div>
 
@@ -128,7 +128,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative w-full overflow-hidden rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:bg-indigo-700 hover:shadow-indigo-500/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 transition-all hover:from-emerald-700 hover:to-teal-700 hover:shadow-emerald-600/40 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   {isLoading ? (
@@ -159,20 +159,21 @@ export default function LoginPage() {
             </form>
 
             {/* Help Text */}
-            <div className="mt-6 border-t border-slate-100 pt-6 text-center">
-              <p className="text-xs text-slate-500">
-                Default credentials: <span className="font-medium text-slate-700">admin@isp.com</span> /{' '}
-                <span className="font-medium text-slate-700">admin123</span>
+            <div className="mt-6 border-t border-stone-100 pt-6 text-center">
+              <p className="text-xs text-stone-500">
+                Default credentials: <span className="font-semibold text-emerald-800">admin@isp.com</span> /{' '}
+                <span className="font-semibold text-emerald-800">admin123</span>
               </p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-xs text-slate-500">
-          ISP Admin Panel © {new Date().getFullYear()}
+        <p className="mt-8 text-center text-xs text-emerald-200/50">
+          GrameenWifi · Kalikaccha, Sarail, Brahmanbaria © {new Date().getFullYear()}
         </p>
       </div>
     </div>
   );
 }
+

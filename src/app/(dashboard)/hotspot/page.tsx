@@ -1,50 +1,71 @@
-import { getServerSession } from 'next-auth/next';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { PermissionAction, PermissionModule } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/authz';
+import { periodBounds, resolvePeriod } from '@/lib/period';
+import { getAvailablePeriods, getStoredPeriod } from '@/lib/period-server';
 import HotspotClient from './HotspotClient';
 import { getHotspotSummary } from './actions';
+import type { PkgKey } from './shared';
 
 export const dynamic = 'force-dynamic';
 
+const EMPTY_SUMMARY = {
+  sevenDay: { count: 0, revenue: 0 },
+  thirtyDay: { count: 0, revenue: 0 },
+  totalRevenue: 0,
+};
+
 export default async function HotspotPage({
-    searchParams,
+  searchParams,
 }: {
-    searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string }>;
 }) {
-    const session = await getServerSession(authOptions);
-    if (!session) redirect('/login');
+  await requirePermission(PermissionModule.HOTSPOT, PermissionAction.VIEW);
 
-    const params = await searchParams;
-    const now = new Date();
-    const year = parseInt(params.year || String(now.getFullYear()));
-    const month = parseInt(params.month || String(now.getMonth() + 1));
+  const params = await searchParams;
+  const [availablePeriods, storedPeriod] = await Promise.all([
+    getAvailablePeriods(),
+    getStoredPeriod(),
+  ]);
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
+  const { year, month } = resolvePeriod(params.year, params.month, [
+    storedPeriod,
+    availablePeriods[0],
+  ]);
 
-    const [rawSales, summaryResult] = await Promise.all([
-        prisma.hotspotSale.findMany({
-            where: { date: { gte: startDate, lte: endDate } },
-            // No include — avoid null-relation crash if creator was deleted
-            orderBy: { date: 'desc' },
-        }),
-        getHotspotSummary(year, month),
-    ]);
+  const { start, end } = periodBounds(year, month);
 
-    // Attach a safe fallback for createdBy so the client type is satisfied
-    const sales = rawSales.map(s => ({ ...s, createdBy: { name: '—' } }));
+  const [rawSales, summaryResult] = await Promise.all([
+    prisma.hotspotSale.findMany({
+      where: { date: { gte: start, lte: end } },
+      orderBy: { date: 'desc' },
+    }),
+    getHotspotSummary(year, month),
+  ]);
 
-    const summary = summaryResult.success && summaryResult.summary
-        ? summaryResult.summary
-        : { sevenDay: { count: 0, revenue: 0 }, thirtyDay: { count: 0, revenue: 0 }, totalRevenue: 0 };
+  // Mapped explicitly rather than cast, so a schema change surfaces as a type error.
+  const sales = rawSales.map((sale) => ({
+    id: sale.id,
+    package: sale.package as PkgKey,
+    quantity: sale.quantity,
+    discount: sale.discount,
+    amount: sale.amount,
+    date: sale.date.toISOString(),
+    customerName: sale.customerName,
+    customerPhone: sale.customerPhone,
+    notes: sale.notes,
+  }));
 
-    return (
-        <HotspotClient
-            sales={sales as any}
-            summary={summary}
-            year={year}
-            month={month}
-        />
-    );
+  const summary =
+    summaryResult.success && summaryResult.summary ? summaryResult.summary : EMPTY_SUMMARY;
+
+  return (
+    <HotspotClient
+      sales={sales}
+      summary={summary}
+      year={year}
+      month={month}
+      availablePeriods={availablePeriods}
+    />
+  );
 }

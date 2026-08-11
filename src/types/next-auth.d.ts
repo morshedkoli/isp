@@ -12,6 +12,12 @@ declare module 'next-auth' {
       email?: string | null;
     };
   }
+
+  interface User {
+    id: string;
+    role: UserRole;
+    partnerId?: string | null;
+  }
 }
 
 declare module 'next-auth/jwt' {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import {
   LayoutDashboard,
   BarChart3,
@@ -15,7 +15,9 @@ import {
   Wifi,
   Calculator,
   Receipt,
+  Calendar,
 } from 'lucide-react';
+import PeriodSelector from '@/components/ui/PeriodSelector';
 
 type ShellUser = {
   name?: string | null;
@@ -44,20 +46,26 @@ export default function DashboardShell({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-soft-pattern">
+    <div className="min-h-screen bg-soft-pattern text-stone-900">
       {/* Sidebar for desktop */}
       <aside
-        className={`fixed left-0 top-0 z-40 h-screen bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out hidden lg:block ${isSidebarOpen ? 'w-64' : 'w-20'
-          }`}
+        className={`fixed left-0 top-0 z-40 h-screen bg-white/90 backdrop-blur-md border-r border-emerald-900/5 shadow-[4px_0_24px_rgba(16,185,129,0.03)] transition-all duration-300 ease-in-out hidden lg:block ${
+          isSidebarOpen ? 'w-64' : 'w-20'
+        }`}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center justify-center border-b border-stone-100 px-4">
+        <div className="flex h-16 items-center justify-between border-b border-emerald-900/5 px-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-              <span className="text-lg font-bold text-white">I</span>
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-950 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/20">
+              <img src="/logo.png" alt="GrameenWifi Logo" className="h-full w-full object-cover" />
             </div>
             {isSidebarOpen && (
-              <span className="text-lg font-bold text-stone-800">ISP Admin</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-base font-bold tracking-tight text-stone-900 truncate">GrameenWifi</span>
+                <span className="text-[10px] font-medium text-emerald-700 truncate" title="Kalikaccha, Sarail, Brahmanbaria">
+                  Kalikaccha, Sarail
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -70,15 +78,18 @@ export default function DashboardShell({
               <Link
                 key={item.name}
                 href={item.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                  ? 'bg-indigo-50/70 text-indigo-700'
-                  : 'text-stone-500 hover:bg-stone-50 hover:text-stone-800'
-                  }`}
+                className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-800 font-semibold shadow-sm ring-1 ring-emerald-500/10'
+                    : 'text-stone-600 hover:bg-emerald-50/50 hover:text-stone-900'
+                }`}
               >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-emerald-600" />
+                )}
                 <item.icon
                   size={20}
-                  className={`transition-colors ${isActive ? 'text-indigo-600' : 'text-stone-400 group-hover:text-stone-600'
-                    }`}
+                  className={`transition-colors ${isActive ? 'text-emerald-600' : 'text-stone-400 group-hover:text-emerald-600'}`}
                 />
                 {isSidebarOpen && <span>{item.name}</span>}
               </Link>
@@ -87,15 +98,12 @@ export default function DashboardShell({
         </nav>
 
         {/* Bottom Actions */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
+        <div className="absolute bottom-0 left-0 right-0 border-t border-emerald-900/5 p-3 bg-stone-50/50">
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-600 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
+            className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-600 transition-all duration-200 hover:bg-rose-50 hover:text-rose-600"
           >
-            <LogOut
-              size={20}
-              className="text-stone-400 transition-colors group-hover:text-red-500"
-            />
+            <LogOut size={20} className="text-stone-400 transition-colors group-hover:text-rose-500" />
             {isSidebarOpen && <span>Logout</span>}
           </button>
         </div>
@@ -104,21 +112,21 @@ export default function DashboardShell({
       {/* Mobile Sidebar */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
+          <div className="absolute inset-0 bg-stone-950/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl">
-            <div className="flex h-16 items-center justify-between border-b border-stone-200 px-4">
+            <div className="flex h-16 items-center justify-between border-b border-emerald-900/5 px-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-                  <span className="text-lg font-bold text-white">I</span>
+                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-950 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/20">
+                  <img src="/logo.png" alt="GrameenWifi Logo" className="h-full w-full object-cover" />
                 </div>
-                <span className="text-lg font-bold text-stone-800">ISP Admin</span>
+                <div className="flex flex-col">
+                  <span className="text-base font-bold text-stone-900">GrameenWifi</span>
+                  <span className="text-[10px] font-medium text-emerald-700">Kalikaccha, Sarail, Brahmanbaria</span>
+                </div>
               </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+                className="rounded-lg p-2 text-stone-400 hover:bg-emerald-50 hover:text-stone-700"
               >
                 <X size={20} />
               </button>
@@ -131,24 +139,22 @@ export default function DashboardShell({
                     key={item.name}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                      ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                      }`}
+                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-800 font-semibold shadow-sm ring-1 ring-emerald-500/10'
+                        : 'text-stone-600 hover:bg-emerald-50/50 hover:text-stone-900'
+                    }`}
                   >
-                    <item.icon
-                      size={20}
-                      className={isActive ? 'text-indigo-600' : 'text-stone-400'}
-                    />
+                    <item.icon size={20} className={isActive ? 'text-emerald-600' : 'text-stone-400'} />
                     <span>{item.name}</span>
                   </Link>
                 );
               })}
             </nav>
-            <div className="absolute bottom-0 left-0 right-0 border-t border-stone-200 p-3">
+            <div className="absolute bottom-0 left-0 right-0 border-t border-emerald-900/5 p-3">
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50"
+                className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition-all duration-200 hover:bg-rose-50"
               >
                 <LogOut size={20} />
                 <span>Logout</span>
@@ -159,40 +165,49 @@ export default function DashboardShell({
       )}
 
       {/* Main Content */}
-      <div
-        className={`transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
-          }`}
-      >
+      <div className={`transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-white/60 backdrop-blur-xl shadow-[0_1px_20px_rgba(0,0,0,0.02)] border-b border-stone-100/50">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-emerald-900/5 shadow-[0_1px_15px_rgba(0,0,0,0.02)]">
           <div className="flex h-16 items-center justify-between px-4 lg:px-8">
-            {/* Left: Toggle & Title */}
+            {/* Left: Toggle & Mobile Menu */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="hidden rounded-lg p-2 text-stone-500 transition-colors hover:bg-stone-100 lg:block"
+                className="hidden rounded-lg p-2 text-stone-500 transition-colors hover:bg-emerald-50 hover:text-emerald-700 lg:block"
+                title="Toggle Sidebar"
               >
                 <Menu size={20} />
               </button>
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-stone-100 lg:hidden"
+                className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-emerald-50 hover:text-emerald-700 lg:hidden"
+                title="Open Navigation"
               >
                 <Menu size={20} />
               </button>
             </div>
 
-            {/* Right: User */}
-            <div className="flex items-center gap-4">
-              <div className="hidden items-center gap-3 sm:flex">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100">
-                  <span className="text-sm font-semibold text-indigo-600">
-                    {user.name?.charAt(0).toUpperCase() || 'A'}
-                  </span>
+            {/* Center/Right: Topbar Period Selector & User Profile */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Month & Year Selection inside Topbar */}
+              <Suspense
+                fallback={
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-white px-3 py-1.5 text-xs text-stone-400">
+                    <Calendar size={15} /> Loading period…
+                  </div>
+                }
+              >
+                <PeriodSelector basePath={pathname} />
+              </Suspense>
+
+              {/* User Avatar */}
+              <div className="hidden items-center gap-3 sm:flex rounded-full bg-emerald-50/60 ring-1 ring-emerald-900/5 px-3 py-1.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-sm">
+                  <span className="text-xs font-bold">{user.name?.charAt(0).toUpperCase() || 'A'}</span>
                 </div>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-stone-900">{user.name}</p>
-                  <p className="text-xs text-stone-500">{user.role}</p>
+                  <p className="text-xs font-semibold text-stone-900">{user.name}</p>
+                  <p className="text-[10px] font-medium text-emerald-700">{user.role}</p>
                 </div>
               </div>
             </div>

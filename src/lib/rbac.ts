@@ -122,6 +122,10 @@ export const moduleDisplayNames: Record<PermissionModule, string> = {
   [PermissionModule.REPORTS]: 'Reports',
   [PermissionModule.SETTINGS]: 'Settings',
   [PermissionModule.AUDIT_LOGS]: 'Audit Logs',
+  [PermissionModule.COMMISSIONS]: 'Commissions',
+  [PermissionModule.HOTSPOT]: 'Hotspot Sales',
+  [PermissionModule.EXPENSES]: 'Expenses',
+  [PermissionModule.PARTNERS]: 'Partners',
 };
 
 /**

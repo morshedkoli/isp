@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { PermissionAction, PermissionModule, UserRole } from '@prisma/client';
+import { PermissionAction, PermissionModule } from '@prisma/client';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { hasPermission } from '@/lib/rbac';
 import { prisma } from '@/lib/prisma';
+import { calculateMonthlyPartnerSettlement } from '@/lib/settlement';
 
 function escapeCsv(value: string | number) {
   const s = String(value ?? '');
@@ -24,58 +25,39 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const where: any = {};
-  if (session.user.role === UserRole.AGENT) {
-    where.assignedAgentId = session.user.id;
-  }
-
-  const customers = await prisma.customer.findMany({
-    where,
-    include: {
-      assignedAgent: { select: { name: true } },
-      cycleCharges: {
-        where: { remainingAmount: { gt: 0 } },
-        select: { remainingAmount: true, cycleEnd: true },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
+  const periods = await prisma.commissionRecord.findMany({
+    select: { year: true, month: true },
+    distinct: ['year', 'month'],
   });
 
-  const now = Date.now();
+  const now = new Date();
   const rows: string[] = [];
-  rows.push('customer_id,name,phone,agent,total_due,max_days_overdue,aging_bucket');
+  rows.push('partner,year,month,remaining_amount,months_elapsed');
 
-  for (const c of customers) {
-    const totalDue = c.cycleCharges.reduce((sum, cc) => sum + cc.remainingAmount, 0);
-    if (totalDue <= 0) continue;
+  for (const period of periods) {
+    const settlement = await calculateMonthlyPartnerSettlement(period.year, period.month);
+    const periodEnd = new Date(period.year, period.month, 0);
+    const monthsElapsed =
+      (now.getFullYear() - periodEnd.getFullYear()) * 12 + (now.getMonth() - periodEnd.getMonth());
 
-    const maxDaysOverdue = c.cycleCharges.reduce((max, cc) => {
-      const days = Math.floor((now - new Date(cc.cycleEnd).getTime()) / (1000 * 60 * 60 * 24));
-      return Math.max(max, days);
-    }, 0);
-
-    let bucket = '0-30';
-    if (maxDaysOverdue > 90) bucket = '90+';
-    else if (maxDaysOverdue > 60) bucket = '61-90';
-    else if (maxDaysOverdue > 30) bucket = '31-60';
-
-    rows.push(
-      [
-        escapeCsv(c.customerId),
-        escapeCsv(c.name),
-        escapeCsv(c.phone),
-        escapeCsv(c.assignedAgent?.name || ''),
-        totalDue,
-        maxDaysOverdue,
-        bucket,
-      ].join(',')
-    );
+    for (const partner of settlement.partners) {
+      if (partner.remainingAmount <= 0) continue;
+      rows.push(
+        [
+          escapeCsv(partner.partnerName),
+          period.year,
+          period.month,
+          partner.remainingAmount,
+          monthsElapsed,
+        ].join(',')
+      );
+    }
   }
 
   return new NextResponse(rows.join('\n'), {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="customer-due-list.csv"',
+      'Content-Disposition': 'attachment; filename="partner-due-list.csv"',
     },
   });
 }

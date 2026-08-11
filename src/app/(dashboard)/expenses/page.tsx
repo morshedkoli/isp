@@ -1,35 +1,101 @@
-import { getServerSession } from 'next-auth/next';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { PermissionAction, PermissionModule } from '@prisma/client';
+import { requirePermission } from '@/lib/authz';
+import { resolvePeriod } from '@/lib/period';
+import { getAvailablePeriods, getStoredPeriod } from '@/lib/period-server';
 import ExpensesClient from './ExpensesClient';
 import { getMonthlyExpenses } from './actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ExpensesPage({
-    searchParams,
+  searchParams,
 }: {
-    searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string }>;
 }) {
-    const session = await getServerSession(authOptions);
-    if (!session) redirect('/login');
+  await requirePermission(PermissionModule.EXPENSES, PermissionAction.VIEW);
 
-    const params = await searchParams;
-    const now = new Date();
-    const year = parseInt(params.year || String(now.getFullYear()));
-    const month = parseInt(params.month || String(now.getMonth() + 1));
+  const params = await searchParams;
+  const [availablePeriods, storedPeriod] = await Promise.all([
+    getAvailablePeriods(),
+    getStoredPeriod(),
+  ]);
 
-    const result = await getMonthlyExpenses(year, month);
+  const { year, month } = resolvePeriod(params.year, params.month, [
+    storedPeriod,
+    availablePeriods[0],
+  ]);
 
-    return (
-        <ExpensesClient
-            salaries={(result.salaries ?? []) as any}
-            misc={(result.misc ?? []) as any}
-            salaryTotal={result.salaryTotal ?? 0}
-            miscTotal={result.miscTotal ?? 0}
-            grandTotal={result.grandTotal ?? 0}
-            year={year}
-            month={month}
-        />
-    );
+  const result = await getMonthlyExpenses(year, month);
+
+  return (
+    <ExpensesClient
+      salaries={(result.salaries ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      fiberCable={(result.fiberCable ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      rent={(result.rent ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      utilities={(result.utilities ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      equipment={(result.equipment ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      conveyance={(result.conveyance ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      misc={(result.misc ?? []).map((expense) => ({
+        id: expense.id,
+        type: expense.type,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date.toISOString(),
+        notes: expense.notes,
+      }))}
+      salaryTotal={result.salaryTotal ?? 0}
+      fiberCableTotal={result.fiberCableTotal ?? 0}
+      rentTotal={result.rentTotal ?? 0}
+      utilitiesTotal={result.utilitiesTotal ?? 0}
+      equipmentTotal={result.equipmentTotal ?? 0}
+      conveyanceTotal={result.conveyanceTotal ?? 0}
+      miscTotal={result.miscTotal ?? 0}
+      grandTotal={result.grandTotal ?? 0}
+      year={year}
+      month={month}
+      availablePeriods={availablePeriods}
+    />
+  );
 }

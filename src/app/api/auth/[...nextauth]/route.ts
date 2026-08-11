@@ -1,4 +1,5 @@
-import NextAuth from 'next-auth';
+import NextAuth, { type Session, type User } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
@@ -65,20 +66,18 @@ export const authOptions = {
     maxAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
-    async jwt({ token, user }: { token: any; user: any }) {
+    async jwt({ token, user }: { token: JWT; user: User | null }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.partnerId = user.partnerId;
+        token.partnerId = user.partnerId ?? null;
       }
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
-      if (token) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.partnerId = token.partnerId;
-      }
+    async session({ session, token }: { session: Session; token: JWT }) {
+      session.user.id = token.id;
+      session.user.role = token.role;
+      session.user.partnerId = token.partnerId;
       return session;
     },
   },

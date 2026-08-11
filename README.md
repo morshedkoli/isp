@@ -1,42 +1,39 @@
 # ISP Admin Panel
 
-A comprehensive web-based admin panel for managing Internet Service Provider (ISP) business operations including customers, billing cycles, recharges, payments, partner profit sharing, and financial reporting.
+A web-based admin panel for managing a small ISP's commission-based business: agent commissions received from the upstream ISP company, hotspot cash voucher sales, business expenses, and partner profit sharing.
 
 ## Features
 
 ### Core Modules
-- **Customer Management**: Add, edit, and track customers with full billing history
-- **Billing Cycles**: 30-day billing cycles anchored to customer's first recharge
-- **Recharge Management**: Track customer recharges and service activations
-- **Payment Collection**: Record and allocate payments to billing cycles
-- **Finance Ledger**: Track income and expenses with categorization
-- **Partner Profit Sharing**: Calculate and distribute profits among partners
-- **Reports & Analytics**: Monthly reports, agent performance, due aging analysis
-- **Audit Logging**: Complete audit trail for all financial transactions
+- **Dashboard**: Monthly snapshot of commission pool, expenses, hotspot revenue, and partner settlement status
+- **Expenses**: Track monthly salary and miscellaneous business expenses
+- **Hotspot Sales**: Record cash voucher sales (7-day / 30-day passes) with quick-add shortcuts
+- **Commissions**: Enter the monthly commission pool received from the upstream ISP, allocate payouts to field agents, and see the net amount distributable to partners
+- **Partners**: Manage partner profiles and share percentages, and settle each partner's monthly commission share (either one calculated payout, or one-by-one per month)
+- **Reports**: Monthly revenue/expense/profit summary, agent performance, and partner due aging, with CSV export
+- **Settings**: View configured plans and system settings
+- **Audit Logging**: Create/update/delete actions on expenses, hotspot sales, commission records, agents, and partners are recorded in the audit log
 
 ### Security & Access Control
-- Role-Based Access Control (RBAC) with 4 roles: Admin, Partner, Agent, Employee
-- Secure authentication with NextAuth
-- Audit logs for all create/update/delete operations
-- Session management and secure cookies
+- Login is restricted to `ADMIN` role accounts only (single-operator tool)
+- A role/permission model (Partner, Agent, Employee + module permissions) exists in the schema for future multi-user access, but is not yet wired into login
+- Secure authentication with NextAuth (JWT sessions)
+- Audit logs for create/update/delete operations on the modules above
 
 ### Business Logic
-- **Billing Cycle Calculation**: Cycles start from first recharge date
-- **Payment Allocation**: Auto-allocate payments to oldest unpaid cycles first
-- **Profit Calculation**: Monthly revenue minus expenses
-- **Partner Shares**: Configurable percentage-based profit distribution
+- **Monthly Commission**: `netCommission = commissionPool − agentPayouts − (salary + misc expenses)`
+- **Partner Shares**: `partnerDue = netCommission × sharePercent / 100`, tracked against actual settlement payouts so remaining due is always accurate
+- **Hotspot Revenue**: Tracked separately as cash voucher sales, not split with partners
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Database**: MongoDB
 - **ORM**: Prisma
 - **Authentication**: NextAuth.js
 - **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui patterns
-- **Charts**: Recharts
-- **Forms**: React Hook Form + Zod
+- **Forms**: React Hook Form + Zod (login only)
 
 ## Getting Started
 
@@ -79,7 +76,7 @@ APP_CURRENCY="BDT"
 npx prisma generate
 ```
 
-5. Run database seed (creates default users, plans, and categories):
+5. Run database seed (creates default admin user, plans, and categories):
 ```bash
 npm run db:seed
 ```
@@ -93,11 +90,11 @@ npm run dev
 
 ### Default Login Credentials
 
-After running the seed script, you can log in with these accounts:
+After running the seed script, you can log in with:
 
 - **Admin**: `admin@isp.com` / `admin123`
-- **Partner**: `partner@isp.com` / `partner123`
-- **Agent**: `agent@isp.com` / `agent123`
+
+Only `ADMIN` role accounts can sign in — Partner/Agent/Employee accounts exist in the schema but are not login-capable today.
 
 ## Project Structure
 
@@ -105,61 +102,71 @@ After running the seed script, you can log in with these accounts:
 isp-admin/
 ├── prisma/
 │   ├── schema.prisma       # Database schema
-│   └── seed.ts            # Database seed script
+│   └── seed.ts             # Database seed script
 ├── src/
-│   ├── app/               # Next.js app router
-│   │   ├── (dashboard)/   # Dashboard routes
-│   │   ├── api/auth/      # NextAuth configuration
-│   │   ├── login/         # Login page
-│   │   ├── layout.tsx     # Root layout
-│   │   └── page.tsx       # Home redirect
-│   ├── components/        # React components
-│   ├── lib/              # Utilities & helpers
-│   │   ├── prisma.ts     # Prisma client
-│   │   ├── billing.ts    # Billing cycle calculations
-│   │   ├── payment-allocation.ts
-│   │   ├── rbac.ts       # Role-based access control
-│   │   └── audit.ts      # Audit logging
-│   ├── types/            # TypeScript types & schemas
-│   └── middleware.ts     # Next.js middleware
-├── .env                  # Environment variables
+│   ├── app/
+│   │   ├── (dashboard)/    # Dashboard, Expenses, Hotspot, Commissions, Partners, Reports, Settings
+│   │   ├── api/auth/       # NextAuth configuration
+│   │   ├── api/reports/    # CSV export routes
+│   │   ├── login/          # Login page
+│   │   ├── layout.tsx      # Root layout
+│   │   └── page.tsx        # Home redirect
+│   ├── components/ui/      # Shared UI primitives (toast)
+│   ├── lib/                 # Utilities & helpers
+│   │   ├── prisma.ts       # Prisma client
+│   │   ├── settlement.ts   # Monthly partner commission settlement calculation
+│   │   ├── billing.ts      # Date/currency formatting + unused billing-cycle math (see note below)
+│   │   ├── rbac.ts         # Role-based permission lookup
+│   │   ├── authz.ts        # Session + permission guards for server actions
+│   │   ├── audit.ts        # Audit logging
+│   │   └── errors.ts       # Shared error message helper
+│   ├── types/               # TypeScript types & Zod schemas
+│   └── proxy.ts             # Auth-gating middleware
+├── .env                     # Environment variables
 ├── package.json
 └── README.md
 ```
 
-## Billing Cycle Logic
+Each dashboard module follows the same pattern: `page.tsx` (server component, data fetching), `*Client.tsx` (client component, UI/state), `actions.ts` (server actions, mutations).
 
-The billing system follows these rules:
+### Note on the Prisma schema
 
-1. **First Recharge Anchor**: A customer's billing cycle starts from their first confirmed recharge date
-2. **30-Day Cycles**: Each billing cycle is exactly 30 days
-3. **Cycle Calculation**:
-   - Cycle 1: firstRechargeAt → firstRechargeAt + 30 days
-   - Cycle 2: firstRechargeAt + 30 → firstRechargeAt + 60 days
-   - And so on...
-4. **Payment Allocation**: Payments are automatically allocated to the oldest unpaid cycle first
-5. **Due Calculation**: Due = Total cycle charges - Total allocated payments
+The schema also defines a `Customer` / `Recharge` / `Payment` / `CycleCharge` / `LedgerEntry` model set for a traditional per-customer subscription billing flow (30-day cycles anchored to first recharge, oldest-cycle-first payment allocation). This logic is implemented and unit-tested (`src/lib/billing.ts`, `src/lib/payment-allocation.ts`, `tests/`), but there is currently no UI or server action that creates or reads this data — the app's live business model is the commission/hotspot flow described above. Treat these models as reserved for a future customer-management feature, not as active functionality.
+
+## Monthly Commission & Settlement Logic
+
+1. Each month, the total commission pool received from the upstream ISP is entered on the Commissions page, broken into named sources
+2. Payouts to field agents (`CommissionAgent`) are entered or auto-calculated from each agent's commission percentage
+3. `netCommission = pool − agentPayouts − salaryExpenses − miscExpenses`
+4. Each active partner's due share = `netCommission × sharePercent / 100`
+5. Partners are settled via `PartnerPayout` records, tagged with the settlement period so remaining-due amounts stay accurate across repeated visits (see `src/lib/settlement.ts`)
 
 ## API Routes & Server Actions
 
-The application uses Next.js Server Actions for data mutations:
+The application uses Next.js Server Actions for data mutations, one `actions.ts` per dashboard module:
 
-- `/customers/actions.ts` - Customer CRUD operations
-- `/recharges/actions.ts` - Recharge and payment operations
-- `/ledger/actions.ts` - Finance ledger operations
-- `/reports/actions.ts` - Reporting operations
+- `(dashboard)/expenses/actions.ts` — Expense CRUD
+- `(dashboard)/hotspot/actions.ts` — Hotspot sale CRUD + monthly summary
+- `(dashboard)/commissions/actions.ts` — Commission agent CRUD + monthly commission record
+- `(dashboard)/partners/actions.ts` — Partner CRUD, payouts, monthly settlement
+- `(dashboard)/reports/actions.ts` — Reporting
+
+CSV export API routes:
+- `/api/reports/monthly-csv` — Monthly revenue/expense/partner-share export
+- `/api/reports/due-list-csv` — Partner due aging export
 
 ## Database Schema
 
-Key collections:
-- **users** - Staff accounts (admin, partners, agents, employees)
-- **customers** - Customer profiles and billing info
-- **recharges** - Recharge transactions
-- **payments** - Payment collections
-- **cycleCharges** - Billing cycle charges
-- **ledgerEntries** - Income and expense records
-- **partners** - Partner profit share configuration
-- **auditLogs** - Audit trail
+Actively used collections:
+- **users** — Staff accounts (currently admin-only login)
+- **partners** — Partner profit share configuration
+- **partner_payouts** — Partner payout/settlement records
+- **expenses** — Salary and misc business expenses
+- **hotspot_sales** — Cash voucher sales
+- **commission_records** / **commission_sources** / **commission_agents** / **agent_commission_entries** — Monthly commission pool and agent payouts
+- **audit_logs** — Audit trail
+
+Reserved (not yet exposed in the UI — see note above): **customers**, **recharges**, **payments**, **cycle_charges**, **payment_allocations**, **ledger_entries**, **monthly_closes**, **partner_shares**, **plans**, **role_permissions**, **ledger_categories**.
 
 ## Development
 
@@ -199,67 +206,10 @@ npm run lint
 4. Get connection string
 5. Add to `DATABASE_URL` environment variable
 
-## Key Features Explained
-
-### Customer Billing Cycle
-When a customer makes their first recharge:
-1. The `firstRechargeAt` timestamp is set
-2. Cycle charges are automatically generated for future billing cycles
-3. Each 30-day cycle creates a charge equal to the customer's plan price
-4. Customers can view their current cycle status and due amounts
-
-### Payment Allocation
-When a payment is recorded:
-1. System finds all unpaid cycle charges (oldest first)
-2. Allocates payment amount to each charge until payment is fully allocated
-3. Updates cycle charge status (paid/unpaid)
-4. Creates allocation records for tracking
-
-### Partner Profit Sharing
-At month end:
-1. Calculate total revenue (payments + recharges + other income)
-2. Subtract total expenses
-3. Calculate net profit
-4. Distribute to partners based on their share percentage
-5. Generate partner share reports
-
 ## License
 
-MIT License - feel free to use for your ISP business!
+MIT License
 
 ## Support
 
-For issues or questions:
-- Create an issue on GitHub
-- Email: support@yourisp.com
-
-## Roadmap
-
-### Phase 1 (MVP) - Complete ✓
-- [x] Customer management
-- [x] Recharge & payment tracking
-- [x] Billing cycle calculations
-- [x] Finance ledger
-- [x] Monthly profit reporting
-- [x] Basic RBAC
-
-### Phase 2 (Coming Soon)
-- [ ] Commission calculation for agents
-- [ ] Monthly closing with locking
-- [ ] Customer statement PDF generation
-- [ ] File attachments support
-- [ ] SMS/WhatsApp notifications
-- [ ] Advanced audit features
-- [ ] Multi-currency support
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-Built with ❤️ for ISP businesses worldwide
+For issues or questions, open an issue on the repository.

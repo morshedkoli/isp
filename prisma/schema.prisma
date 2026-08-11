@@ -24,6 +24,10 @@ enum PermissionModule {
   REPORTS
   SETTINGS
   AUDIT_LOGS
+  COMMISSIONS
+  HOTSPOT
+  EXPENSES
+  PARTNERS
 }
 
 // Permission actions
@@ -65,14 +69,19 @@ model User {
 // ─── Business Expenses ────────────────────────────────────────────────────────
 
 enum ExpenseType {
-  SALARY  // Employee salary
-  MISC    // Miscellaneous business expense
+  SALARY       // Employee salary
+  FIBER_CABLE  // Fiber cable purchase/maintenance expense
+  RENT         // Office & Space Rent
+  UTILITIES    // Electricity & Utility Bills
+  EQUIPMENT    // Hardware & Network Devices
+  CONVEYANCE   // Transport & Conveyance
+  MISC         // Miscellaneous business expense
 }
 
 model Expense {
   id          String      @id @default(auto()) @map("_id") @db.ObjectId
   type        ExpenseType
-  description String      // Employee name (SALARY) or description (MISC)
+  description String      // Employee name (SALARY) or description (other expense types)
   amount      Float
   date        DateTime
   month       Int         // 1-12, for monthly grouping
@@ -364,13 +373,19 @@ model PartnerPayout {
   method          PaymentMethod
   referenceId     String?
   notes           String?
-  
+
+  // Set only when this payout was created by the monthly commission settlement flow.
+  // Identifies settlement payouts unambiguously, instead of matching on referenceId text.
+  isSettlement    Boolean   @default(false)
+  settlementYear  Int?
+  settlementMonth Int?
+
   // Relations
   partner         Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  
+
   @@map("partner_payouts")
 }
 

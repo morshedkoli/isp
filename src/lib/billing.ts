@@ -13,6 +13,7 @@
 
 import { addDays } from 'date-fns';
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { formatTaka } from './format';
 
 const TIMEZONE = 'Asia/Dhaka';
 const CYCLE_LENGTH_DAYS = 30;
@@ -157,17 +158,12 @@ export function formatDateTime(date: Date | string): string {
 }
 
 /**
- * Format currency amount
- * @param amount - Amount to format
- * @returns Formatted currency string
+ * Format currency amount.
+ * @deprecated Import `formatTaka` from `@/lib/format` instead — kept as a
+ * delegating alias so the whole app renders money identically.
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-BD', {
-    style: 'currency',
-    currency: 'BDT',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return formatTaka(amount);
 }
 
 /**

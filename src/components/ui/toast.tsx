@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -32,19 +33,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed right-4 top-4 z-50 space-y-2">
+      <div className="fixed right-5 top-5 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none">
         {items.map((item) => (
           <div
             key={item.id}
-            className={`rounded-md px-4 py-3 text-sm text-white shadow-lg ${
+            className={`pointer-events-auto flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl transition-all animate-in fade-in slide-in-from-top-3 ${
               item.type === 'success'
-                ? 'bg-green-600'
+                ? 'bg-emerald-950/90 text-emerald-100 ring-1 ring-emerald-500/30'
                 : item.type === 'error'
-                ? 'bg-red-600'
-                : 'bg-slate-700'
+                ? 'bg-rose-950/90 text-rose-100 ring-1 ring-rose-500/30'
+                : 'bg-stone-900/90 text-stone-100 ring-1 ring-stone-700/40'
             }`}
           >
-            {item.message}
+            {item.type === 'success' && <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />}
+            {item.type === 'error' && <AlertCircle size={18} className="text-rose-400 shrink-0" />}
+            {item.type === 'info' && <Info size={18} className="text-emerald-400 shrink-0" />}
+            <span>{item.message}</span>
           </div>
         ))}
       </div>
@@ -59,3 +63,4 @@ export function useToast() {
   }
   return ctx;
 }
+
