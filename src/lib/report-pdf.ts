@@ -11,6 +11,11 @@ const MUTED = rgb(0.45, 0.43, 0.4);
 const LINE = rgb(0.9, 0.89, 0.87);
 const SOFT = rgb(0.97, 0.97, 0.96);
 
+function safeText(text: string, fallback = ''): string {
+  const cleaned = text.replace(/[^\x20-\x7E]/g, '').trim();
+  return cleaned.length > 0 ? cleaned : fallback;
+}
+
 function money(value: number) {
   return `BDT ${Math.abs(value).toLocaleString('en-BD', { maximumFractionDigits: 0 })}`;
 }
@@ -20,7 +25,8 @@ function short(value: string, max = 34) {
 }
 
 function write(page: PDFPage, font: PDFFont, text: string, x: number, y: number, size: number, color = STONE) {
-  page.drawText(text, { x, y, size, font, color });
+  const safe = safeText(text, ' ');
+  page.drawText(safe, { x, y, size, font, color });
 }
 
 function rule(page: PDFPage, y: number) {
@@ -29,7 +35,7 @@ function rule(page: PDFPage, y: number) {
 
 function footer(page: PDFPage, font: PDFFont) {
   rule(page, 42);
-  write(page, font, 'GrameenWifi · Kalikaccha, Sarail, Brahmanbaria', MARGIN, 27, 8, MUTED);
+  write(page, font, 'GrameenWifi - Kalikaccha, Sarail, Brahmanbaria', MARGIN, 27, 8, MUTED);
   write(page, font, `Generated ${new Date().toLocaleDateString('en-GB')}`, PAGE_WIDTH - MARGIN - 105, 27, 8, MUTED);
 }
 
@@ -40,13 +46,13 @@ async function createDocument(title: string, period: string) {
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 86, width: PAGE_WIDTH, height: 86, color: INDIGO });
-  write(page, bold, 'GRAMEENWIFI · KALIKACCHA, SARAIL', MARGIN, PAGE_HEIGHT - 34, 9, rgb(1, 1, 1));
+  write(page, bold, 'GRAMEENWIFI - KALIKACCHA, SARAIL', MARGIN, PAGE_HEIGHT - 34, 9, rgb(1, 1, 1));
   write(page, bold, title, MARGIN, PAGE_HEIGHT - 60, 20, rgb(1, 1, 1));
   write(page, regular, period, PAGE_WIDTH - MARGIN - 120, PAGE_HEIGHT - 56, 10, rgb(0.9, 0.89, 1));
   return { pdf, page, regular, bold };
 }
 
-export async function createMonthlyReportPdf(report: MonthlyReportData, agents: Array<{ agentName: string; commissionPercent: number; amount: number }>) {
+export async function createMonthlyReportPdf(report: MonthlyReportData, agents: Array<{ agentId?: number; agentName: string; commissionPercent: number; amount: number }>) {
   const period = `${monthName(report.month)} ${report.year}`;
   const { pdf, page, regular, bold } = await createDocument('Monthly financial report', period);
   let y = PAGE_HEIGHT - 122;
@@ -73,13 +79,13 @@ export async function createMonthlyReportPdf(report: MonthlyReportData, agents: 
     ['Company commission', report.revenue.companyCommission],
     ['Hotspot revenue', report.revenue.hotspotRevenue],
     ['Agent payouts', -report.expenses.agentPayouts],
-    ['Salary expenses (বেতন)', -report.expenses.salaryTotal],
-    ['Fiber cable expenses (ফাইবার ক্যাবল)', -report.expenses.fiberCableTotal],
-    ['Rent expenses (অফিস ভাড়া)', -report.expenses.rentTotal],
-    ['Utility expenses (বিদ্যুৎ ও বিল)', -report.expenses.utilitiesTotal],
-    ['Equipment expenses (ডিভাইস/যন্ত্রপাতি)', -report.expenses.equipmentTotal],
-    ['Conveyance expenses (যাতায়াত)', -report.expenses.conveyanceTotal],
-    ['Miscellaneous expenses (অন্যান্য খরচ)', -report.expenses.miscTotal],
+    ['Salary expenses', -report.expenses.salaryTotal],
+    ['Fiber cable expenses', -report.expenses.fiberCableTotal],
+    ['Rent expenses', -report.expenses.rentTotal],
+    ['Utility expenses', -report.expenses.utilitiesTotal],
+    ['Equipment expenses', -report.expenses.equipmentTotal],
+    ['Conveyance expenses', -report.expenses.conveyanceTotal],
+    ['Miscellaneous expenses', -report.expenses.miscTotal],
   ];
   summaryRows.forEach(([label, amount], index) => {
     if (index % 2 === 0) page.drawRectangle({ x: MARGIN, y: y - 14, width: PAGE_WIDTH - MARGIN * 2, height: 21, color: SOFT });
@@ -100,7 +106,8 @@ export async function createMonthlyReportPdf(report: MonthlyReportData, agents: 
   y -= 15;
   report.partnerShares.slice(0, 7).forEach((partner, index) => {
     if (index % 2 === 0) page.drawRectangle({ x: MARGIN, y: y - 10, width: PAGE_WIDTH - MARGIN * 2, height: 20, color: SOFT });
-    write(page, regular, short(partner.partnerName, 26), columns[0], y - 1, 8.5);
+    const pName = safeText(partner.partnerName, `Partner ${partner.partnerId}`);
+    write(page, regular, short(pName, 26), columns[0], y - 1, 8.5);
     write(page, regular, `${partner.sharePercent}%`, columns[1], y - 1, 8.5, MUTED);
     write(page, regular, money(partner.dueAmount), columns[2], y - 1, 8.5);
     write(page, regular, money(partner.paidAmount), columns[3], y - 1, 8.5);
@@ -118,7 +125,8 @@ export async function createMonthlyReportPdf(report: MonthlyReportData, agents: 
   } else {
     agents.slice(0, 5).forEach((agent, index) => {
       if (index % 2 === 0) page.drawRectangle({ x: MARGIN, y: y - 10, width: PAGE_WIDTH - MARGIN * 2, height: 20, color: SOFT });
-      write(page, regular, short(agent.agentName), MARGIN + 10, y - 1, 8.5);
+      const aName = safeText(agent.agentName, agent.agentId ? `Agent ${agent.agentId}` : 'Agent');
+      write(page, regular, short(aName), MARGIN + 10, y - 1, 8.5);
       write(page, regular, `${agent.commissionPercent}% commission`, 285, y - 1, 8.5, MUTED);
       const amount = money(agent.amount);
       write(page, bold, amount, PAGE_WIDTH - MARGIN - 10 - bold.widthOfTextAtSize(amount, 8.5), y - 1, 8.5);
@@ -161,3 +169,4 @@ export async function createYearlyReportPdf(year: number, months: MonthlyReportD
   footer(page, regular);
   return pdf.save();
 }
+
