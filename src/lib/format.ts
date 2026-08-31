@@ -1,16 +1,14 @@
 /**
  * Single source of truth for money and date display.
- *
- * The app previously had four competing currency formatters — some rendering
- * "৳1,234", others "BDT 1,234", and two that ran the value through Math.abs()
- * and silently dropped the minus sign on a loss. Everything now goes through here.
+ * Deterministic formatting to guarantee zero hydration mismatches between SSR and client.
  */
 
 const TAKA = '৳';
-const LOCALE = 'en-BD';
 
 // U+2212 MINUS SIGN — visually balanced with digits, unlike the ASCII hyphen.
 const MINUS = '−';
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export interface MoneyOptions {
   /** Show two decimal places. Defaults to whole taka. */
@@ -20,15 +18,14 @@ export interface MoneyOptions {
 }
 
 /**
- * Format an amount as taka. Negative values keep their sign — callers must not
- * pre-apply Math.abs(), or a loss will read as a gain.
+ * Format an amount as taka. Negative values keep their sign.
  */
 export function formatTaka(amount: number, options: MoneyOptions = {}): string {
   const { decimals = false, signed = false } = options;
   const safe = Number.isFinite(amount) ? amount : 0;
   const fractionDigits = decimals ? 2 : 0;
 
-  const digits = Math.abs(safe).toLocaleString(LOCALE, {
+  const digits = Math.abs(safe).toLocaleString('en-US', {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   });
@@ -39,8 +36,6 @@ export function formatTaka(amount: number, options: MoneyOptions = {}): string {
 
 /**
  * Format an amount that is being subtracted (agent payouts, expenses, …).
- * Always renders with a leading minus regardless of the value's own sign,
- * so breakdown rows read consistently.
  */
 export function formatDeduction(amount: number): string {
   return `${MINUS}${formatTaka(Math.abs(amount))}`;
@@ -49,24 +44,26 @@ export function formatDeduction(amount: number): string {
 /** Percentage with at most one decimal place — "60%" / "60.9%". */
 export function formatPercent(value: number): string {
   const safe = Number.isFinite(value) ? value : 0;
-  return `${safe.toLocaleString(LOCALE, { maximumFractionDigits: 1 })}%`;
+  return `${safe.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
 }
 
-/** "05 Oct 2026" */
+/** "05 Oct 2026" - Deterministic SSR/CSR safe date formatting */
 export function formatDate(value: Date | string): string {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = MONTH_NAMES[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
 }
 
 /** "05 Oct" — for dense tables where the year is implied by the period filter. */
 export function formatDateShort(value: Date | string): string {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-  });
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = MONTH_NAMES[d.getMonth()];
+  return `${day} ${month}`;
 }
 
 /** Value for an <input type="date">. */

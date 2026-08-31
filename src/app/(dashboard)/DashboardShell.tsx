@@ -46,7 +46,7 @@ export default function DashboardShell({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-soft-pattern text-stone-900">
+    <div className="min-h-screen bg-soft-pattern text-stone-900" suppressHydrationWarning>
       {/* Sidebar for desktop */}
       <aside
         className={`fixed left-0 top-0 z-40 h-screen bg-white/90 backdrop-blur-md border-r border-emerald-900/5 shadow-[4px_0_24px_rgba(16,185,129,0.03)] transition-all duration-300 ease-in-out hidden lg:block ${

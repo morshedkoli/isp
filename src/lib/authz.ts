@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth/next';
 import { PermissionAction, PermissionModule, UserRole } from '@prisma/client';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 
 export type SessionUser = {
