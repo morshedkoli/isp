@@ -10,6 +10,7 @@ import PartnerTable from './PartnerTable';
 import RecentPayoutsTable from './RecentPayoutsTable';
 import PaymentSettleModal from './PaymentSettleModal';
 import MonthSettlementModal from './MonthSettlementModal';
+import { formatPeriod } from '@/lib/period';
 import type { Partner, Period, RecentPayout } from './shared';
 import { ui } from '@/lib/ui-tokens';
 
@@ -106,7 +107,7 @@ export default function PartnersClient({
         <div className="space-y-6">
             <PageHeader
                 title="Partners & Equity"
-                subtitle="Partner equity shares, payout histories, and monthly settlement calculations"
+                subtitle={`Partner equity shares and settlement status · ${formatPeriod(initialPeriod.year, initialPeriod.month)}`}
                 icon={UserCheck}
                 accent="profit"
                 toolbar={
@@ -143,13 +144,13 @@ export default function PartnersClient({
                 partners={partners}
                 activePartners={activePartners}
                 totalShare={totalShare}
-                recentPayoutCount={recentPayouts.length}
+                periodPayoutCount={recentPayouts.length}
                 onAdd={openAddModal}
                 onEdit={openEditModal}
                 onToggleActive={handleToggleActive}
             />
 
-            <RecentPayoutsTable recentPayouts={recentPayouts} />
+            <RecentPayoutsTable recentPayouts={recentPayouts} period={initialPeriod} />
 
             {isPartnerModalOpen && (
                 <PartnerFormModal

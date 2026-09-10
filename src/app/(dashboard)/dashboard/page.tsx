@@ -85,5 +85,5 @@ export default async function DashboardPage({
   ]);
 
   const data = await getDashboardData(selectedPeriod.year, selectedPeriod.month);
-  return <DashboardClient data={data} availablePeriods={availablePeriods} />;
+  return <DashboardClient data={data} />;
 }

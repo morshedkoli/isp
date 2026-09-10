@@ -53,7 +53,6 @@ export default async function CommissionsPage({
       equipmentTotal={expenseTotals.totals.EQUIPMENT}
       conveyanceTotal={expenseTotals.totals.CONVEYANCE}
       miscTotal={expenseTotals.totals.MISC}
-      availablePeriods={availablePeriods}
     />
   );
 }

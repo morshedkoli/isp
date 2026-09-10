@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { Calculator, Users } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
-import PeriodSelector from '@/components/ui/PeriodSelector';
-import { formatPeriod, type Period } from '@/lib/period';
+import { formatPeriod } from '@/lib/period';
 import AgentsTab from './AgentsTab';
 import CalculatorTab from './CalculatorTab';
 import type { Agent, CommissionRecord, Partner } from './shared';
@@ -22,7 +21,6 @@ interface CommissionsClientProps {
   equipmentTotal: number;
   conveyanceTotal: number;
   miscTotal: number;
-  availablePeriods: Period[];
 }
 
 const TABS = [
@@ -45,7 +43,6 @@ export default function CommissionsClient({
   equipmentTotal,
   conveyanceTotal,
   miscTotal,
-  availablePeriods,
 }: CommissionsClientProps) {
   const [tab, setTab] = useState<TabKey>('calculator');
 

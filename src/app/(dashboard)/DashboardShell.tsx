@@ -89,11 +89,14 @@ function NavItems({
 export default function DashboardShell({
   user,
   fallbackPeriod,
+  availablePeriods = [],
   children,
 }: {
   user: ShellUser;
   /** Period the pages fall back to when the URL carries no year/month. */
   fallbackPeriod?: Period;
+  /** Months that actually have data — widens the selector's year dropdown. */
+  availablePeriods?: Period[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -226,7 +229,11 @@ export default function DashboardShell({
                   </div>
                 }
               >
-                <PeriodSelector basePath={pathname} fallbackPeriod={fallbackPeriod} />
+                <PeriodSelector
+                  basePath={pathname}
+                  fallbackPeriod={fallbackPeriod}
+                  availablePeriods={availablePeriods}
+                />
               </Suspense>
 
               {/* User Avatar */}

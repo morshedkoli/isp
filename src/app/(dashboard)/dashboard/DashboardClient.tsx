@@ -6,12 +6,11 @@ import {
   ArrowRight, Banknote, PieChart, ShoppingBag, LayoutDashboard,
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
-import PeriodSelector from '@/components/ui/PeriodSelector';
 import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SectionCard } from '@/components/ui/Card';
 import { formatTaka, formatDeduction, formatPercent, formatDateShort } from '@/lib/format';
-import { formatPeriod, type Period } from '@/lib/period';
+import { formatPeriod } from '@/lib/period';
 import { accents, statusBadge, ui, PARTNER_ACCENTS } from '@/lib/ui-tokens';
 import { HOTSPOT_PACKAGES, type HotspotPackageKey } from '../hotspot/constants';
 
@@ -95,10 +94,8 @@ function BreakdownRow({
 
 export default function DashboardClient({
   data,
-  availablePeriods,
 }: {
   data: DashboardData;
-  availablePeriods: Period[];
 }) {
   const {
     monthIndex, year,

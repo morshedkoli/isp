@@ -33,7 +33,11 @@ export default async function DashboardLayout({
   ]);
 
   return (
-    <DashboardShell user={session.user} fallbackPeriod={fallbackPeriod}>
+    <DashboardShell
+      user={session.user}
+      fallbackPeriod={fallbackPeriod}
+      availablePeriods={availablePeriods}
+    >
       {children}
     </DashboardShell>
   );

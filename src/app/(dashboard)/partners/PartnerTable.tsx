@@ -5,7 +5,7 @@ interface PartnerTableProps {
     partners: Partner[];
     activePartners: Partner[];
     totalShare: number;
-    recentPayoutCount: number;
+    periodPayoutCount: number;
     onAdd: () => void;
     onEdit: (partner: Partner) => void;
     onToggleActive: (partner: Partner) => void;
@@ -15,7 +15,7 @@ export default function PartnerTable({
     partners,
     activePartners,
     totalShare,
-    recentPayoutCount,
+    periodPayoutCount,
     onAdd,
     onEdit,
     onToggleActive,
@@ -40,8 +40,8 @@ export default function PartnerTable({
                         </p>
                     </div>
                     <div className="rounded-2xl bg-white p-4 shadow-[0_4px_24px_-4px_rgba(16,185,129,0.06)] ring-1 ring-emerald-950/[0.04]">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800/70">Recent Payouts</p>
-                        <p className="mt-1 text-2xl font-bold text-stone-900">{recentPayoutCount}</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800/70">Payouts This Period</p>
+                        <p className="mt-1 text-2xl font-bold text-stone-900">{periodPayoutCount}</p>
                     </div>
                 </div>
             )}

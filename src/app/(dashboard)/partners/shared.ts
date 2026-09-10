@@ -26,6 +26,10 @@ export interface RecentPayout {
     method: 'CASH' | 'BKASH' | 'NAGAD' | 'BANK' | 'OTHER';
     referenceId?: string | null;
     notes?: string | null;
+    /** Set when the payout was created by the monthly settlement flow. */
+    isSettlement?: boolean;
+    settlementYear?: number | null;
+    settlementMonth?: number | null;
 }
 
 export interface SettlementPartnerRow {
