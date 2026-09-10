@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { PermissionAction, PermissionModule } from '@prisma/client';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { prisma } from '@/lib/prisma';
 import { calculateMonthlyPartnerSettlement } from '@/lib/settlement';
+
+export const dynamic = 'force-dynamic';
 
 function escapeCsv(value: string | number) {
   const s = String(value ?? '');

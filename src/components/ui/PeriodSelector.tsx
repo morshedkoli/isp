@@ -46,13 +46,14 @@ export default function PeriodSelector({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-white px-3 py-1.5 shadow-sm transition-all hover:border-emerald-600/30">
+    <div className="flex flex-wrap items-center gap-2" suppressHydrationWarning>
+      <div className="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-white px-3 py-1.5 shadow-sm transition-all hover:border-emerald-600/30" suppressHydrationWarning>
         <Calendar size={15} className="text-emerald-600 shrink-0" />
         <select
           aria-label="Month"
           value={currentMonth}
           onChange={(e) => go(currentYear, parseInt(e.target.value, 10))}
+          suppressHydrationWarning
           className="cursor-pointer bg-transparent text-xs font-semibold text-stone-700 outline-none hover:text-emerald-800 transition-colors"
         >
           {MONTHS.map((label, index) => (
@@ -66,6 +67,7 @@ export default function PeriodSelector({
           aria-label="Year"
           value={currentYear}
           onChange={(e) => go(parseInt(e.target.value, 10), currentMonth)}
+          suppressHydrationWarning
           className="cursor-pointer bg-transparent text-xs font-semibold text-stone-700 outline-none hover:text-emerald-800 transition-colors"
         >
           {years.map((y) => (

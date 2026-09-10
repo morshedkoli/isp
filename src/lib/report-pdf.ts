@@ -24,6 +24,18 @@ const WARNING = rgb(0.76, 0.45, 0.05);
 
 const COMPANY = 'GrameenWifi - Kalikaccha, Sarail, Brahmanbaria';
 
+/** "05/10/2026". Built by hand so the host's ICU data cannot change the output. */
+function generatedOn(date = new Date()): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}/${date.getFullYear()}`;
+}
+
+/** Guards against a null name reaching the page from older records. */
+function displayName(value: string | null | undefined, fallback: string): string {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
+}
+
 /**
  * A report in progress: the document, the page currently being drawn on, the
  * fonts, and the baseline the next block starts from.
@@ -64,56 +76,105 @@ function font(doc: ReportDoc, weight: FontWeight): PDFFont {
   return weight === 'bold' ? doc.bold : doc.regular;
 }
 
-function text(doc: ReportDoc, value: string, x: number, y: number, size: number, style: TextStyle = {}): number {
+function text(
+  doc: ReportDoc,
+  content: string,
+  x: number,
+  baseline: number,
+  size: number,
+  style: TextStyle = {},
+): number {
   const weight = style.weight ?? 'regular';
-  return drawText(doc.page, value, { x, y, size, helvetica: font(doc, weight), weight, color: style.color ?? STONE });
+  return drawText(doc.page, content, {
+    x,
+    y: baseline,
+    size,
+    helvetica: font(doc, weight),
+    weight,
+    color: style.color ?? STONE,
+  });
 }
 
-/** Draws text so that it ends at `right` — used for every money column. */
-function textRight(doc: ReportDoc, value: string, right: number, y: number, size: number, style: TextStyle = {}): number {
+function textRight(
+  doc: ReportDoc,
+  content: string,
+  right: number,
+  baseline: number,
+  size: number,
+  style: TextStyle = {},
+): number {
   const weight = style.weight ?? 'regular';
-  const width = measureText(value, size, font(doc, weight), weight);
-  return text(doc, value, right - width, y, size, style);
+  const width = measureText(content, size, font(doc, weight), weight);
+  return text(doc, content, right - width, baseline, size, style);
 }
 
 function rule(page: PDFPage, y: number): void {
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: CONTENT_RIGHT, y }, thickness: 1, color: LINE });
+  page.drawLine({
+    start: { x: MARGIN, y },
+    end: { x: CONTENT_RIGHT, y },
+    thickness: 0.5,
+    color: LINE,
+  });
 }
 
 function zebra(page: PDFPage, y: number, index: number): void {
   if (index % 2 !== 0) return;
-  page.drawRectangle({ x: MARGIN, y: y - 10, width: PAGE_WIDTH - MARGIN * 2, height: ROW_HEIGHT, color: SOFT });
+  page.drawRectangle({
+    x: MARGIN,
+    y: y - 5,
+    width: CONTENT_RIGHT - MARGIN,
+    height: ROW_HEIGHT,
+    color: SOFT,
+  });
 }
 
 function drawFooter(doc: ReportDoc): void {
   rule(doc.page, 42);
   text(doc, COMPANY, MARGIN, 27, 8, { color: MUTED });
-  textRight(doc, `Generated ${new Date().toLocaleDateString('en-GB')}`, CONTENT_RIGHT, 27, 8, { color: MUTED });
+  textRight(doc, `Generated ${generatedOn()}`, CONTENT_RIGHT, 27, 8, { color: MUTED });
 }
 
 function drawBanner(doc: ReportDoc, isContinuation: boolean): void {
   const height = isContinuation ? CONTINUED_BANNER_HEIGHT : BANNER_HEIGHT;
-  doc.page.drawRectangle({ x: 0, y: PAGE_HEIGHT - height, width: PAGE_WIDTH, height, color: INDIGO });
+  const bottom = PAGE_HEIGHT - height;
 
-  if (isContinuation) {
-    text(doc, `${doc.title} (continued)`, MARGIN, PAGE_HEIGHT - 32, 12, { weight: 'bold', color: WHITE });
-    textRight(doc, doc.period, CONTENT_RIGHT, PAGE_HEIGHT - 31, 9, { color: rgb(0.9, 0.89, 1) });
-    return;
-  }
+  doc.page.drawRectangle({
+    x: 0,
+    y: bottom,
+    width: PAGE_WIDTH,
+    height,
+    color: INDIGO,
+  });
 
-  text(doc, 'GRAMEENWIFI - KALIKACCHA, SARAIL', MARGIN, PAGE_HEIGHT - 34, 9, { weight: 'bold', color: WHITE });
-  text(doc, doc.title, MARGIN, PAGE_HEIGHT - 60, 20, { weight: 'bold', color: WHITE });
-  textRight(doc, doc.period, CONTENT_RIGHT, PAGE_HEIGHT - 56, 10, { color: rgb(0.9, 0.89, 1) });
+  const titleY = isContinuation ? PAGE_HEIGHT - 32 : PAGE_HEIGHT - 44;
+  doc.page.drawText(doc.title, {
+    x: MARGIN,
+    y: titleY,
+    size: isContinuation ? 14 : 20,
+    font: doc.bold,
+    color: WHITE,
+  });
+
+  const subtitle = isContinuation ? `${doc.period} (continued)` : doc.period;
+  const subtitleY = isContinuation ? PAGE_HEIGHT - 44 : PAGE_HEIGHT - 64;
+  doc.page.drawText(subtitle, {
+    x: MARGIN,
+    y: subtitleY,
+    size: isContinuation ? 8.5 : 10,
+    font: doc.regular,
+    color: rgb(0.85, 0.85, 0.98),
+  });
+
+  doc.y = bottom - 26;
 }
 
 function startPage(doc: ReportDoc, isContinuation: boolean): void {
   doc.page = doc.pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   drawBanner(doc, isContinuation);
-  doc.y = PAGE_HEIGHT - (isContinuation ? CONTINUED_BANNER_HEIGHT : BANNER_HEIGHT) - 36;
 }
 
 /**
- * Makes sure `needed` points of vertical space remain, breaking to a new page
+ * Ensures at least `needed` points remain before the footer, breaking the page
  * when they do not. Reports grow with the number of partners and agents, so
  * rows are never dropped to fit a single page.
  */
@@ -196,7 +257,7 @@ function finish(doc: ReportDoc): Promise<Uint8Array> {
 }
 
 export interface AgentPayoutRow {
-  agentId?: string;
+  agentId?: string | number;
   agentName: string;
   commissionPercent: number;
   amount: number;
@@ -247,7 +308,7 @@ export async function createMonthlyReportPdf(report: MonthlyReportData, agents: 
   } else {
     report.partnerShares.forEach((partner, index) => {
       tableRow(doc, index, (target, baseline) => {
-        const name = partner.partnerName.trim() || 'Unnamed partner';
+        const name = displayName(partner.partnerName, 'Unnamed partner');
         text(target, truncateToWidth(name, 240, 8.5, target.regular), partnerColumns[0].x, baseline, 8.5);
         textRight(target, `${partner.sharePercent}%`, partnerColumns[1].x, baseline, 8.5, { color: MUTED });
         textRight(target, money(partner.dueAmount), partnerColumns[2].x, baseline, 8.5);
@@ -273,7 +334,7 @@ export async function createMonthlyReportPdf(report: MonthlyReportData, agents: 
   } else {
     agents.forEach((agent, index) => {
       tableRow(doc, index, (target, baseline) => {
-        const name = agent.agentName.trim() || 'Unnamed agent';
+        const name = displayName(agent.agentName, 'Unnamed agent');
         text(target, truncateToWidth(name, 300, 8.5, target.regular), agentColumns[0].x, baseline, 8.5);
         textRight(target, `${agent.commissionPercent}%`, agentColumns[1].x, baseline, 8.5, { color: MUTED });
         textRight(target, money(agent.amount), agentColumns[2].x, baseline, 8.5, { weight: 'bold' });
