@@ -113,7 +113,83 @@ export default function SalesTable({ sales, onEdit, onDeleted, onError }: SalesT
             accent="hotspot"
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Cards below md: Qty, Notes, Amount and Actions all sat off-screen
+              on a 375px viewport. */}
+          <ul className="space-y-2.5 p-4 md:hidden">
+            {filtered.map((sale) => {
+              const config = PKG_CONFIG[sale.package];
+              const accent = accents[config.accent];
+              return (
+                <li key={sale.id} className={`${ui.cardSoft} p-3.5`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className={`${ui.badge} ${accent.soft} ${accent.text}`}>
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${accent.bar}`} />
+                        {config.label}
+                      </span>
+                      <p className="mt-1.5 text-xs text-stone-500">
+                        {formatDate(sale.date)} · ×{sale.quantity}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end">
+                      <span className="text-base font-bold tabular-nums text-emerald-600">
+                        {formatTaka(sale.amount)}
+                      </span>
+                      {sale.discount ? (
+                        <span className="mt-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-100">
+                          −{formatTaka(sale.discount)} disc.
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0 text-xs">
+                      {sale.customerName ? (
+                        <p className="truncate font-medium text-stone-700">
+                          {sale.customerName}
+                          {sale.customerPhone ? ` · ${sale.customerPhone}` : ''}
+                        </p>
+                      ) : (
+                        <span className="text-stone-400">No customer recorded</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(sale)}
+                        className={`${ui.buttonIcon} hover:text-emerald-700`}
+                        aria-label={`Edit ${config.label} sale`}
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(sale.id)}
+                        className={`${ui.buttonIcon} hover:text-rose-600`}
+                        aria-label={`Delete ${config.label} sale`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {sale.notes && <p className="mt-2 text-xs text-stone-500">{sale.notes}</p>}
+                </li>
+              );
+            })}
+            <li className="flex items-center justify-between rounded-xl bg-emerald-50/60 px-3.5 py-3 ring-1 ring-emerald-900/[0.04]">
+              <span className="text-sm font-semibold text-stone-700">
+                {filterPkg ? PKG_CONFIG[filterPkg].label : 'Total'} ({filtered.length})
+              </span>
+              <span className="text-sm font-bold tabular-nums text-emerald-700">
+                {formatTaka(filteredTotal)}
+              </span>
+            </li>
+          </ul>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className={ui.table}>
               <thead className={ui.tableHead}>
                 <tr>
@@ -177,7 +253,9 @@ export default function SalesTable({ sales, onEdit, onDeleted, onError }: SalesT
                         </div>
                       </td>
                       <td className={`${ui.tableCell} text-center`}>
-                        <div className="flex items-center justify-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                        {/* Hover-reveal only where hover exists — otherwise these
+                            are unreachable on a touch screen. */}
+                        <div className="flex items-center justify-center gap-1 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
                           <button
                             type="button"
                             onClick={() => onEdit(sale)}
@@ -213,6 +291,7 @@ export default function SalesTable({ sales, onEdit, onDeleted, onError }: SalesT
               </tfoot>
             </table>
           </div>
+          </>
         )}
       </div>
 

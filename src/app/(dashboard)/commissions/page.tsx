@@ -46,13 +46,13 @@ export default async function CommissionsPage({
       record={record}
       year={selectedPeriod.year}
       month={selectedPeriod.month}
-      salaryTotal={expenseTotals.salaryTotal ?? 0}
-      fiberCableTotal={expenseTotals.fiberCableTotal ?? 0}
-      rentTotal={expenseTotals.rentTotal ?? 0}
-      utilitiesTotal={expenseTotals.utilitiesTotal ?? 0}
-      equipmentTotal={expenseTotals.equipmentTotal ?? 0}
-      conveyanceTotal={expenseTotals.conveyanceTotal ?? 0}
-      miscTotal={expenseTotals.miscTotal ?? 0}
+      salaryTotal={expenseTotals.totals.SALARY}
+      fiberCableTotal={expenseTotals.totals.FIBER_CABLE}
+      rentTotal={expenseTotals.totals.RENT}
+      utilitiesTotal={expenseTotals.totals.UTILITIES}
+      equipmentTotal={expenseTotals.totals.EQUIPMENT}
+      conveyanceTotal={expenseTotals.totals.CONVEYANCE}
+      miscTotal={expenseTotals.totals.MISC}
       availablePeriods={availablePeriods}
     />
   );

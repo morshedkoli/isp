@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { periodOf } from './business-date';
 import { PERIOD_COOKIE, parsePeriodCookie, sortPeriodsDesc, type Period } from './period';
 
 /**
@@ -31,8 +32,10 @@ export async function getAvailablePeriods(): Promise<Period[]> {
   for (const row of commissions) keys.add(`${row.year}-${row.month}`);
   for (const row of expenses) keys.add(`${row.year}-${row.month}`);
   for (const sale of hotspotSales) {
-    const date = new Date(sale.date);
-    keys.add(`${date.getFullYear()}-${date.getMonth() + 1}`);
+    // Business timezone, not the server's — otherwise a sale on the 1st shows
+    // up under the previous month on a host west of UTC.
+    const { year, month } = periodOf(sale.date);
+    keys.add(`${year}-${month}`);
   }
 
   const periods = Array.from(keys).map((key) => {

@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { loginSchema, LoginInput } from '@/types/schemas';
-import { Wifi, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { safeCallbackUrl } from '@/lib/auth-redirect';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,13 +35,28 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
-        setError('Invalid admin credentials');
-      } else {
-        router.push('/dashboard');
-        router.refresh();
+      if (!result) {
+        setError('Could not reach the sign-in service. Please try again.');
+        return;
       }
-    } catch (error) {
+
+      if (result.error) {
+        // NextAuth reports every rejected credential as `CredentialsSignin`;
+        // anything else is a server-side fault worth surfacing differently.
+        setError(
+          result.error === 'CredentialsSignin'
+            ? 'Invalid admin credentials'
+            : 'Sign-in failed. Please try again.'
+        );
+        return;
+      }
+
+      // Honour the page the proxy bounced the user away from, falling back to
+      // the dashboard. `replace` keeps the login form out of the back history.
+      const target = safeCallbackUrl(searchParams.get('callbackUrl'));
+      router.replace(target);
+      router.refresh();
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -174,6 +191,14 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
 

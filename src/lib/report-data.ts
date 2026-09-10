@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { monthBounds } from './business-date';
 import { calculateMonthlyPartnerSettlement } from '@/lib/settlement';
 
 export interface MonthlyReportData {
@@ -32,8 +33,7 @@ export interface MonthlyReportData {
 }
 
 export async function getMonthlyReportData(year: number, month: number): Promise<MonthlyReportData> {
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+  const { start: startDate, end: endDate } = monthBounds(year, month);
 
   const [settlement, hotspotAgg] = await Promise.all([
     calculateMonthlyPartnerSettlement(year, month),

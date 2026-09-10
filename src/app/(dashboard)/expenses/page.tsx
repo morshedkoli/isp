@@ -25,77 +25,15 @@ export default async function ExpensesPage({
     availablePeriods[0],
   ]);
 
-  const result = await getMonthlyExpenses(year, month);
+  const { byType, totals, grandTotal } = await getMonthlyExpenses(year, month);
 
   return (
     <ExpensesClient
-      salaries={(result.salaries ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      fiberCable={(result.fiberCable ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      rent={(result.rent ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      utilities={(result.utilities ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      equipment={(result.equipment ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      conveyance={(result.conveyance ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      misc={(result.misc ?? []).map((expense) => ({
-        id: expense.id,
-        type: expense.type,
-        description: expense.description,
-        amount: expense.amount,
-        date: expense.date.toISOString(),
-        notes: expense.notes,
-      }))}
-      salaryTotal={result.salaryTotal ?? 0}
-      fiberCableTotal={result.fiberCableTotal ?? 0}
-      rentTotal={result.rentTotal ?? 0}
-      utilitiesTotal={result.utilitiesTotal ?? 0}
-      equipmentTotal={result.equipmentTotal ?? 0}
-      conveyanceTotal={result.conveyanceTotal ?? 0}
-      miscTotal={result.miscTotal ?? 0}
-      grandTotal={result.grandTotal ?? 0}
+      byType={byType}
+      totals={totals}
+      grandTotal={grandTotal}
       year={year}
       month={month}
-      availablePeriods={availablePeriods}
     />
   );
 }

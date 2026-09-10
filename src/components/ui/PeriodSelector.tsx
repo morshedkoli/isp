@@ -11,6 +11,12 @@ interface PeriodSelectorProps {
   month?: number;
   /** Periods that actually have data — used only to widen the year list. */
   availablePeriods?: Period[];
+  /**
+   * What the page resolves to when the URL carries no year/month — the stored
+   * period, else the newest period with data. Falling back to today's month
+   * here instead let the selector disagree with the data on screen.
+   */
+  fallbackPeriod?: Period;
   /** Optional trailing content (badges, hints) rendered beside the selects. */
   children?: React.ReactNode;
 }
@@ -20,14 +26,17 @@ export default function PeriodSelector({
   year,
   month,
   availablePeriods = [],
+  fallbackPeriod,
   children,
 }: PeriodSelectorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const now = new Date();
-  const currentYear = year ?? (parseInt(searchParams?.get('year') || '', 10) || now.getFullYear());
-  const currentMonth = month ?? (parseInt(searchParams?.get('month') || '', 10) || (now.getMonth() + 1));
+  const fallbackYear = fallbackPeriod?.year ?? now.getFullYear();
+  const fallbackMonth = fallbackPeriod?.month ?? now.getMonth() + 1;
+  const currentYear = year ?? (parseInt(searchParams?.get('year') || '', 10) || fallbackYear);
+  const currentMonth = month ?? (parseInt(searchParams?.get('month') || '', 10) || fallbackMonth);
   const activePath = basePath ?? (typeof window !== 'undefined' ? window.location.pathname : '/dashboard');
 
   const years = buildYearOptions(availablePeriods, currentYear);

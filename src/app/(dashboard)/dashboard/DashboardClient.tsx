@@ -132,36 +132,49 @@ export default function DashboardClient({
         }
       />
 
-      {/* ── KPI row ─────────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Company Commission"
-          value={formatTaka(companyCommission)}
-          hint={`Agent payouts ${formatTaka(agentPayouts)}`}
-          icon={Banknote}
-          accent="commission"
-        />
-        <StatCard
-          label="Total Expenses"
-          value={formatTaka(totalExpenses)}
-          hint={`Salary ${formatTaka(salaryTotal)} · Fiber ${formatTaka(fiberCableTotal)}`}
-          icon={Receipt}
-          accent="expense"
-        />
-        <StatCard
-          label="Net to Partners"
-          value={formatTaka(netCommission)}
-          hint={isProfit ? 'Distributable profit' : 'Net loss this month'}
-          icon={PieChart}
-          accent={isProfit ? 'profit' : 'loss'}
-        />
-        <StatCard
-          label="Hotspot Sales"
-          value={formatTaka(hotspotRevenue)}
-          hint={`${hotspotCount} voucher${hotspotCount === 1 ? '' : 's'} sold`}
-          icon={Wifi}
-          accent="hotspot"
-        />
+      {/*
+        ── KPI row ───────────────────────────────────────────────────────────
+        The bottom line leads. Four equally-loud gradient tiles gave the month's
+        net the same weight as its inputs, so nothing read as the answer — and
+        on a phone the four stacked blocks pushed every table below the fold.
+        The net stays solid; the three figures feeding it are supporting tiles.
+      */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <StatCard
+            label={isProfit ? 'Net to Partners' : 'Net Loss'}
+            value={formatTaka(netCommission)}
+            hint={isProfit ? 'Distributable profit' : 'Net loss this month'}
+            icon={PieChart}
+            accent={isProfit ? 'profit' : 'loss'}
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3 lg:col-span-2">
+          <StatCard
+            label="Company Commission"
+            value={formatTaka(companyCommission)}
+            hint={`Agent payouts ${formatTaka(agentPayouts)}`}
+            icon={Banknote}
+            accent="commission"
+            variant="soft"
+          />
+          <StatCard
+            label="Total Expenses"
+            value={formatTaka(totalExpenses)}
+            hint={`Salary ${formatTaka(salaryTotal)} · Fiber ${formatTaka(fiberCableTotal)}`}
+            icon={Receipt}
+            accent="expense"
+            variant="soft"
+          />
+          <StatCard
+            label="Hotspot Sales"
+            value={formatTaka(hotspotRevenue)}
+            hint={`${hotspotCount} voucher${hotspotCount === 1 ? '' : 's'} sold`}
+            icon={Wifi}
+            accent="hotspot"
+            variant="soft"
+          />
+        </div>
       </div>
 
       {/* ── Commission waterfall + partner distribution ─────────────────────── */}
@@ -261,21 +274,23 @@ export default function DashboardClient({
                 return (
                   <div key={partner.id}>
                     <div className="mb-1.5 flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2">
+                      {/* Wraps rather than squeezing the name: on a 320px screen the
+                          two badges left "Halim" 33px of a 38px word and clipped it. */}
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                         <div
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${accent.soft} ${accent.text}`}
                         >
                           {partner.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="truncate text-sm font-medium text-stone-800">
+                        <span className="text-sm font-medium text-stone-800">
                           {partner.name}
                         </span>
-                        <span className={`${ui.badge} ${accent.soft} ${accent.text}`}>
+                        <span className={`${ui.badge} shrink-0 ${accent.soft} ${accent.text}`}>
                           {formatPercent(partner.sharePercent)}
                         </span>
                         <Link
                           href={settleHref}
-                          className={`${ui.badge} ${status.className} transition-opacity hover:opacity-80`}
+                          className={`${ui.badge} shrink-0 ${status.className} transition-opacity hover:opacity-80`}
                         >
                           {status.label}
                         </Link>

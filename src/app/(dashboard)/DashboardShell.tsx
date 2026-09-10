@@ -18,6 +18,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import PeriodSelector from '@/components/ui/PeriodSelector';
+import type { Period } from '@/lib/period';
 
 type ShellUser = {
   name?: string | null;
@@ -36,9 +37,12 @@ const navigation = [
 
 export default function DashboardShell({
   user,
+  fallbackPeriod,
   children,
 }: {
   user: ShellUser;
+  /** Period the pages fall back to when the URL carries no year/month. */
+  fallbackPeriod?: Period;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -197,7 +201,7 @@ export default function DashboardShell({
                   </div>
                 }
               >
-                <PeriodSelector basePath={pathname} />
+                <PeriodSelector basePath={pathname} fallbackPeriod={fallbackPeriod} />
               </Suspense>
 
               {/* User Avatar */}

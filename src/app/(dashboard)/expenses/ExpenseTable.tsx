@@ -9,7 +9,6 @@ import { EXPENSE_CONFIG, ExpenseType, type Expense } from './shared';
 
 interface ExpenseTableProps {
   rows: Expense[];
-  total: number;
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
 }
@@ -27,7 +26,6 @@ const CATEGORY_FILTERS: { key: 'ALL' | ExpenseType; label: string }[] = [
 
 export default function ExpenseTable({
   rows,
-  total,
   onEdit,
   onDelete,
 }: ExpenseTableProps) {
@@ -58,8 +56,10 @@ export default function ExpenseTable({
       {/* Header Search & Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-950/[0.04] pb-4">
         {/* Category Pills */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 flex items-center gap-1 text-xs font-semibold text-stone-500">
+        {/* Scrolls sideways on a phone; wrapping put these on four rows and
+            pushed the actual expense list off the screen. */}
+        <div className="-mx-1 flex w-full items-center gap-1.5 overflow-x-auto px-1 pb-1 sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <span className="mr-1 flex shrink-0 items-center gap-1 text-xs font-semibold text-stone-500">
             <Filter size={13} /> Filter:
           </span>
           {CATEGORY_FILTERS.map((cat) => (
@@ -67,7 +67,7 @@ export default function ExpenseTable({
               key={cat.key}
               type="button"
               onClick={() => setSelectedCategory(cat.key)}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
                 selectedCategory === cat.key
                   ? 'bg-emerald-700 text-white shadow-sm ring-1 ring-emerald-600'
                   : 'bg-emerald-50/60 text-stone-600 hover:bg-emerald-100/60 hover:text-emerald-900'
@@ -101,7 +101,66 @@ export default function ExpenseTable({
           size="compact"
         />
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* Cards below md: the table needed 604px in a 303px viewport, which put
+            Amount and Actions — the two columns that matter — off screen. */}
+        <ul className="space-y-2.5 md:hidden">
+          {filteredRows.map((row) => {
+            const config = EXPENSE_CONFIG[row.type];
+            const accent = accents[config.accent];
+            return (
+              <li key={row.id} className={`${ui.cardSoft} p-3.5`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-stone-900">{row.description}</p>
+                    <p className="mt-0.5 text-xs text-stone-500">{formatDate(row.date)}</p>
+                  </div>
+                  <span className="shrink-0 text-base font-bold tabular-nums text-stone-900">
+                    {formatTaka(row.amount)}
+                  </span>
+                </div>
+
+                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide ${accent.soft} ${accent.text}`}
+                  >
+                    {config.title}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(row)}
+                      className={`${ui.buttonIcon} hover:text-emerald-700`}
+                      aria-label={`Edit ${row.description}`}
+                    >
+                      <Edit2 size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(row.id)}
+                      className={`${ui.buttonIcon} hover:text-rose-600`}
+                      aria-label={`Delete ${row.description}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                {row.notes && <p className="mt-2 text-xs text-stone-500">{row.notes}</p>}
+              </li>
+            );
+          })}
+          <li className="flex items-center justify-between rounded-xl bg-emerald-50/60 px-3.5 py-3 ring-1 ring-emerald-900/[0.04]">
+            <span className="text-sm font-semibold text-stone-700">
+              {selectedCategory === 'ALL' ? 'সর্বমোট খরচ' : 'ফিল্টারকৃত মোট'} ({filteredRows.length})
+            </span>
+            <span className="text-sm font-bold tabular-nums text-emerald-900">
+              {formatTaka(filteredTotal)}
+            </span>
+          </li>
+        </ul>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className={ui.table}>
             <thead className={ui.tableHead}>
               <tr>
@@ -139,7 +198,9 @@ export default function ExpenseTable({
                       </span>
                     </td>
                     <td className={`${ui.tableCell} text-center`}>
-                      <div className="flex items-center justify-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                      {/* Visible by default; hover-reveal only where hover exists,
+                          otherwise these are unreachable on a touch screen. */}
+                      <div className="flex items-center justify-center gap-1 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
                         <button
                           type="button"
                           onClick={() => onEdit(row)}
@@ -175,6 +236,7 @@ export default function ExpenseTable({
             </tfoot>
           </table>
         </div>
+        </>
       )}
     </div>
   );

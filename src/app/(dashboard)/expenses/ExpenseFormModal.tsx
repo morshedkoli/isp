@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Banknote } from 'lucide-react';
 import Modal, { ModalActions } from '@/components/ui/Modal';
+import { defaultEntryDate, parseCalendarDate } from '@/lib/business-date';
 import { toDateInputValue } from '@/lib/format';
 import { ui } from '@/lib/ui-tokens';
 import { createExpense, updateExpense } from './actions';
@@ -11,8 +12,11 @@ import { EXPENSE_CONFIG, type Expense, type ExpenseType } from './shared';
 interface ExpenseFormModalProps {
   initialType?: ExpenseType;
   editing: Expense | null;
+  /** The period currently on screen — new entries default into it. */
+  year: number;
+  month: number;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (period: { year: number; month: number }) => void;
 }
 
 const CATEGORY_OPTIONS = Object.entries(EXPENSE_CONFIG).map(([key, config]) => ({
@@ -23,13 +27,19 @@ const CATEGORY_OPTIONS = Object.entries(EXPENSE_CONFIG).map(([key, config]) => (
 export default function ExpenseFormModal({
   initialType = 'MISC',
   editing,
+  year,
+  month,
   onClose,
   onSaved,
 }: ExpenseFormModalProps) {
   const [selectedType, setSelectedType] = useState<ExpenseType>(editing?.type || initialType);
   const [description, setDescription] = useState(editing?.description ?? '');
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '');
-  const [date, setDate] = useState(toDateInputValue(editing?.date ?? new Date()));
+  // Defaults into the month being viewed rather than today, so an entry added
+  // while looking at a past period doesn't silently file itself into this one.
+  const [date, setDate] = useState(
+    editing ? toDateInputValue(editing.date) : defaultEntryDate(year, month)
+  );
   const [notes, setNotes] = useState(editing?.notes ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,7 +74,8 @@ export default function ExpenseFormModal({
         : await createExpense({ ...payload, type: selectedType });
 
       if (result.success) {
-        onSaved();
+        const parts = parseCalendarDate(date);
+        onSaved(parts ? { year: parts.year, month: parts.month } : { year, month });
       } else {
         setError(result.error || 'Could not save this entry.');
       }

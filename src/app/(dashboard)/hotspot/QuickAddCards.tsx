@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Clock, CheckCircle } from 'lucide-react';
+import { defaultEntryDate, parseCalendarDate } from '@/lib/business-date';
 import { formatTaka } from '@/lib/format';
 import { accents, ui } from '@/lib/ui-tokens';
 import { recordHotspotSale } from './actions';
@@ -9,14 +10,19 @@ import { PKG_CONFIG, PKG_KEYS, type PkgKey, type Summary } from './shared';
 
 interface QuickAddCardsProps {
   summary: Summary;
+  /** The period currently on screen — a quick add lands inside it. */
+  year: number;
+  month: number;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  onAdded: () => void;
+  onAdded: (period: { year: number; month: number }) => void;
   onError: (message: string) => void;
 }
 
 export default function QuickAddCards({
   summary,
+  year,
+  month,
   isLoading,
   setIsLoading,
   onAdded,
@@ -27,15 +33,16 @@ export default function QuickAddCards({
   const handleQuickAdd = async (pkg: PkgKey) => {
     setIsLoading(true);
     try {
-      const result = await recordHotspotSale({
-        package: pkg,
-        quantity: 1,
-        date: new Date().toISOString().split('T')[0],
-      });
+      // `toISOString()` gave the UTC day, which is the *previous* date between
+      // midnight and 06:00 in Dhaka — quick adds made early in the morning on
+      // the 1st were recorded into the previous month.
+      const date = defaultEntryDate(year, month);
+      const result = await recordHotspotSale({ package: pkg, quantity: 1, date });
       if (result.success) {
         setJustAdded(pkg);
         setTimeout(() => setJustAdded(null), 1800);
-        onAdded();
+        const parts = parseCalendarDate(date);
+        onAdded(parts ? { year: parts.year, month: parts.month } : { year, month });
       } else {
         onError(result.error || 'Could not record the sale.');
       }

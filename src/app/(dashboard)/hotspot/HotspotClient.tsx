@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Wifi, TrendingUp, Banknote } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
-import PeriodSelector from '@/components/ui/PeriodSelector';
 import { formatTaka } from '@/lib/format';
-import { formatPeriod, type Period } from '@/lib/period';
-import { ui } from '@/lib/ui-tokens';
+import { formatPeriod } from '@/lib/period';
+import { accents, ui } from '@/lib/ui-tokens';
 import QuickAddCards from './QuickAddCards';
 import SalesTable from './SalesTable';
 import SaleFormModal from './SaleFormModal';
@@ -18,7 +17,6 @@ interface HotspotClientProps {
   summary: Summary;
   year: number;
   month: number;
-  availablePeriods: Period[];
 }
 
 export default function HotspotClient({
@@ -26,7 +24,6 @@ export default function HotspotClient({
   summary,
   year,
   month,
-  availablePeriods,
 }: HotspotClientProps) {
   const router = useRouter();
 
@@ -52,10 +49,21 @@ export default function HotspotClient({
     setEditingSale(null);
   };
 
-  const handleSaved = () => {
-    closeModal();
+  /**
+   * A sale dated outside the month on screen is saved to *its own* month, so
+   * jump there rather than refreshing a period that will not contain it.
+   */
+  const goToPeriodOf = (period: { year: number; month: number }) => {
     setError(undefined);
+    if (period.year !== year || period.month !== month) {
+      router.push(`/hotspot?year=${period.year}&month=${period.month}`);
+    }
     router.refresh();
+  };
+
+  const handleSaved = (period: { year: number; month: number }) => {
+    closeModal();
+    goToPeriodOf(period);
   };
 
   return (
@@ -80,17 +88,18 @@ export default function HotspotClient({
 
       <QuickAddCards
         summary={summary}
+        year={year}
+        month={month}
         isLoading={isLoading}
         setIsLoading={setIsLoading}
-        onAdded={() => {
-          setError(undefined);
-          router.refresh();
-        }}
+        onAdded={goToPeriodOf}
         onError={setError}
       />
 
-      {/* Revenue banner — the one deliberately loud element on the page. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-gradient-to-r from-sky-600 to-violet-600 px-6 py-4 shadow-[0_12px_32px_-16px_rgba(2,132,199,0.7)]">
+      {/* Revenue banner — the one deliberately loud element on the page. Uses the
+          hotspot accent rather than a hand-rolled sky→violet gradient, which was
+          the only off-palette surface in an otherwise emerald/teal app. */}
+      <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-6 py-4 shadow-[0_12px_32px_-16px_rgba(13,148,136,0.55)] ${accents.hotspot.solid}`}>
         <div className="flex items-center gap-2">
           <Banknote size={20} className="text-white/80" />
           <span className="text-sm font-medium text-white/80">Total Revenue</span>
@@ -118,7 +127,13 @@ export default function HotspotClient({
       />
 
       {isModalOpen && (
-        <SaleFormModal editingSale={editingSale} onClose={closeModal} onSaved={handleSaved} />
+        <SaleFormModal
+          editingSale={editingSale}
+          year={year}
+          month={month}
+          onClose={closeModal}
+          onSaved={handleSaved}
+        />
       )}
     </div>
   );

@@ -65,7 +65,6 @@ export default async function HotspotPage({
       summary={summary}
       year={year}
       month={month}
-      availablePeriods={availablePeriods}
     />
   );
 }

@@ -14,6 +14,7 @@
 import { addDays } from 'date-fns';
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { formatTaka } from './format';
+import { monthBounds } from './business-date';
 
 const TIMEZONE = 'Asia/Dhaka';
 const CYCLE_LENGTH_DAYS = 30;
@@ -181,8 +182,7 @@ export function getCurrentDateInDhaka(): Date {
  * @returns Object with start and end dates
  */
 export function getMonthRange(year: number, month: number): { start: Date; end: Date } {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
+  const { start, end } = monthBounds(year, month);
   return { start, end };
 }
 

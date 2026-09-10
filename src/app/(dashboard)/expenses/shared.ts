@@ -9,6 +9,12 @@ export interface Expense {
   notes?: string | null;
 }
 
+/** One list of expenses per category. */
+export type ExpenseBuckets = Record<ExpenseType, Expense[]>;
+
+/** One summed amount per category. */
+export type ExpenseTotals = Record<ExpenseType, number>;
+
 /** Per-type presentation config, so salary and misc read consistently everywhere. */
 export const EXPENSE_CONFIG = {
   SALARY: {
@@ -82,3 +88,23 @@ export const EXPENSE_CONFIG = {
     accent: 'agent',
   },
 } as const;
+
+/**
+ * Every expense category, in display order. Derived from EXPENSE_CONFIG so
+ * adding a category to the config is enough — nothing else needs updating.
+ */
+export const EXPENSE_TYPES = Object.keys(EXPENSE_CONFIG) as ExpenseType[];
+
+/** A zeroed total per category, so summing never has to guard for undefined. */
+export function emptyExpenseTotals(): ExpenseTotals {
+  const totals = {} as ExpenseTotals;
+  for (const type of EXPENSE_TYPES) totals[type] = 0;
+  return totals;
+}
+
+/** An empty list per category. */
+export function emptyExpenseBuckets(): ExpenseBuckets {
+  const buckets = {} as ExpenseBuckets;
+  for (const type of EXPENSE_TYPES) buckets[type] = [];
+  return buckets;
+}

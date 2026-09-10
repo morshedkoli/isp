@@ -1,3 +1,6 @@
+import { businessToday } from '@/lib/business-date';
+import { formatTaka } from '@/lib/format';
+
 export interface Partner {
     id: string;
     sharePercent: number;
@@ -41,10 +44,18 @@ export const MONTHS = [
 
 export const PAYMENT_METHODS: Array<RecentPayout['method']> = ['CASH', 'BKASH', 'NAGAD', 'BANK', 'OTHER'];
 
-export const todayInputValue = () => new Date().toISOString().split('T')[0];
+/**
+ * Today in the business timezone. `toISOString()` returned the UTC day, which
+ * is the previous date between midnight and 06:00 in Dhaka.
+ */
+export const todayInputValue = () => businessToday();
 
-export const formatMoney = (amount: number) =>
-    `BDT ${amount.toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
+/**
+ * @deprecated Import `formatTaka` from `@/lib/format` instead. Kept as a
+ * delegating alias — this rendered "BDT 1,234" while the rest of the app
+ * rendered "৳1,234", so partner settlement screens looked like another product.
+ */
+export const formatMoney = (amount: number) => formatTaka(amount, { decimals: true });
 
 export const formatMethod = (method: RecentPayout['method']) => {
     switch (method) {

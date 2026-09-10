@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Clock, Wifi } from 'lucide-react';
 import Modal, { ModalActions } from '@/components/ui/Modal';
+import { defaultEntryDate, parseCalendarDate } from '@/lib/business-date';
 import { formatTaka, toDateInputValue } from '@/lib/format';
 import { accents, ui } from '@/lib/ui-tokens';
 import { recordHotspotSale, updateHotspotSale } from './actions';
@@ -10,15 +11,28 @@ import { PKG_CONFIG, PKG_KEYS, type PkgKey, type Sale } from './shared';
 
 interface SaleFormModalProps {
   editingSale: Sale | null;
+  /** The period currently on screen — new sales default into it. */
+  year: number;
+  month: number;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (period: { year: number; month: number }) => void;
 }
 
-export default function SaleFormModal({ editingSale, onClose, onSaved }: SaleFormModalProps) {
+export default function SaleFormModal({
+  editingSale,
+  year,
+  month,
+  onClose,
+  onSaved,
+}: SaleFormModalProps) {
   const [pkg, setPkg] = useState<PkgKey>(editingSale?.package ?? 'SEVEN_DAY');
   const [quantity, setQuantity] = useState(editingSale ? String(editingSale.quantity) : '1');
   const [discount, setDiscount] = useState(String(editingSale?.discount ?? 0));
-  const [date, setDate] = useState(toDateInputValue(editingSale?.date ?? new Date()));
+  // Defaults into the month being viewed rather than today, so a sale added
+  // while looking at a past period doesn't silently file itself into this one.
+  const [date, setDate] = useState(
+    editingSale ? toDateInputValue(editingSale.date) : defaultEntryDate(year, month)
+  );
   const [customerName, setCustomerName] = useState(editingSale?.customerName ?? '');
   const [customerPhone, setCustomerPhone] = useState(editingSale?.customerPhone ?? '');
   const [notes, setNotes] = useState(editingSale?.notes ?? '');
@@ -64,7 +78,8 @@ export default function SaleFormModal({ editingSale, onClose, onSaved }: SaleFor
         : await recordHotspotSale(payload);
 
       if (result.success) {
-        onSaved();
+        const parts = parseCalendarDate(date);
+        onSaved(parts ? { year: parts.year, month: parts.month } : { year, month });
       } else {
         setError(result.error || 'Could not save this sale.');
       }

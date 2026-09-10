@@ -7,6 +7,8 @@
  * server-component-only cookie reader.
  */
 
+import { monthBounds } from './business-date';
+
 export const PERIOD_COOKIE = 'selected_period';
 export const PERIOD_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
@@ -91,12 +93,16 @@ export function resolvePeriod(
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-/** Inclusive start/end Date bounds for a period, in server-local time. */
+/**
+ * Inclusive start/end bounds for a period.
+ *
+ * Delegates to `monthBounds` so period filtering matches how entry dates are
+ * stored. These were previously built from server-local `new Date(year, ...)`,
+ * which shifted the window by the host's UTC offset and could drop entries
+ * dated the first of the month.
+ */
 export function periodBounds(year: number, month: number): { start: Date; end: Date } {
-  return {
-    start: new Date(year, month - 1, 1),
-    end: new Date(year, month, 0, 23, 59, 59, 999),
-  };
+  return monthBounds(year, month);
 }
 
 export function parsePeriodCookie(raw: string | undefined | null): Period | null {

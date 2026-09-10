@@ -1,3 +1,6 @@
+
+import { toCalendarDate } from './business-date';
+
 /**
  * Single source of truth for money and date display.
  *
@@ -69,12 +72,12 @@ export function formatDateShort(value: Date | string): string {
   });
 }
 
-/** Value for an <input type="date">. */
+/**
+ * Value for an `<input type="date">`, read in the business timezone. Using the
+ * browser's local getters showed the previous day for viewers west of Dhaka.
+ */
 export function toDateInputValue(value: Date | string = new Date()): string {
-  const date = new Date(value);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+  return toCalendarDate(value);
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {

@@ -4,59 +4,32 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Cable, Receipt, Users, MoreHorizontal, TrendingDown, Building2, Zap, Cpu, Navigation, Plus } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
-import PeriodSelector from '@/components/ui/PeriodSelector';
 import StatCard from '@/components/ui/StatCard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatTaka } from '@/lib/format';
-import { formatPeriod, type Period } from '@/lib/period';
+import { formatPeriod } from '@/lib/period';
 import { ui } from '@/lib/ui-tokens';
 import { deleteExpense } from './actions';
 import ExpenseTable from './ExpenseTable';
 import ExpenseFormModal from './ExpenseFormModal';
-import type { Expense, ExpenseType } from './shared';
+import { EXPENSE_TYPES, type Expense, type ExpenseBuckets, type ExpenseTotals } from './shared';
 
 interface ExpensesClientProps {
-  salaries: Expense[];
-  fiberCable: Expense[];
-  rent: Expense[];
-  utilities: Expense[];
-  equipment: Expense[];
-  conveyance: Expense[];
-  misc: Expense[];
-  salaryTotal: number;
-  fiberCableTotal: number;
-  rentTotal: number;
-  utilitiesTotal: number;
-  equipmentTotal: number;
-  conveyanceTotal: number;
-  miscTotal: number;
+  byType: ExpenseBuckets;
+  totals: ExpenseTotals;
   grandTotal: number;
   year: number;
   month: number;
-  availablePeriods: Period[];
 }
 
 type ModalState = { editing: Expense | null } | null;
 
 export default function ExpensesClient({
-  salaries,
-  fiberCable,
-  rent,
-  utilities,
-  equipment,
-  conveyance,
-  misc,
-  salaryTotal,
-  fiberCableTotal,
-  rentTotal,
-  utilitiesTotal,
-  equipmentTotal,
-  conveyanceTotal,
-  miscTotal,
+  byType,
+  totals,
   grandTotal,
   year,
   month,
-  availablePeriods,
 }: ExpensesClientProps) {
   const router = useRouter();
 
@@ -65,18 +38,18 @@ export default function ExpensesClient({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
-  const allExpenses = [
-    ...salaries,
-    ...fiberCable,
-    ...rent,
-    ...utilities,
-    ...equipment,
-    ...conveyance,
-    ...misc,
-  ];
+  const allExpenses = EXPENSE_TYPES.flatMap((type) => byType[type]);
 
-  const handleSaved = () => {
+  /**
+   * An entry dated outside the month on screen is saved to *its own* month, so
+   * jump there instead of refreshing a period that will not contain it — it
+   * previously just vanished with no explanation.
+   */
+  const handleSaved = (period: { year: number; month: number }) => {
     setModal(null);
+    if (period.year !== year || period.month !== month) {
+      router.push(`/expenses?year=${period.year}&month=${period.month}`);
+    }
     router.refresh();
   };
 
@@ -123,49 +96,49 @@ export default function ExpensesClient({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="বেতন (Salaries)"
-          value={formatTaka(salaryTotal)}
+          value={formatTaka(totals.SALARY)}
           icon={Users}
           accent="partner"
           variant="soft"
         />
         <StatCard
           label="ফাইবার ক্যাবল (Fiber Cable)"
-          value={formatTaka(fiberCableTotal)}
+          value={formatTaka(totals.FIBER_CABLE)}
           icon={Cable}
           accent="hotspot"
           variant="soft"
         />
         <StatCard
           label="অফিস ভাড়া (Rent)"
-          value={formatTaka(rentTotal)}
+          value={formatTaka(totals.RENT)}
           icon={Building2}
           accent="profit"
           variant="soft"
         />
         <StatCard
           label="বিদ্যুৎ ও বিল (Utilities)"
-          value={formatTaka(utilitiesTotal)}
+          value={formatTaka(totals.UTILITIES)}
           icon={Zap}
           accent="loss"
           variant="soft"
         />
         <StatCard
           label="ডিভাইস (Equipment)"
-          value={formatTaka(equipmentTotal)}
+          value={formatTaka(totals.EQUIPMENT)}
           icon={Cpu}
           accent="commission"
           variant="soft"
         />
         <StatCard
           label="যাতায়াত (Conveyance)"
-          value={formatTaka(conveyanceTotal)}
+          value={formatTaka(totals.CONVEYANCE)}
           icon={Navigation}
           accent="partner"
           variant="soft"
         />
         <StatCard
           label="অন্যান্য (Misc)"
-          value={formatTaka(miscTotal)}
+          value={formatTaka(totals.MISC)}
           icon={MoreHorizontal}
           accent="agent"
           variant="soft"
@@ -183,7 +156,6 @@ export default function ExpensesClient({
 
       <ExpenseTable
         rows={allExpenses}
-        total={grandTotal}
         onEdit={(expense) => setModal({ editing: expense })}
         onDelete={setDeleteTarget}
       />
@@ -191,6 +163,8 @@ export default function ExpensesClient({
       {modal && (
         <ExpenseFormModal
           editing={modal.editing}
+          year={year}
+          month={month}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
         />

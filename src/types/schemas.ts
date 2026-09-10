@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { UserRole, PaymentMethod, RechargeStatus, LedgerType, CustomerStatus } from '@prisma/client';
+import { parseCalendarDate } from '@/lib/business-date';
+import { UserRole, PaymentMethod, RechargeStatus, LedgerType, CustomerStatus, ExpenseType, HotspotPackage } from '@prisma/client';
 
 // Customer schemas
 export const customerSchema = z.object({
@@ -106,6 +107,52 @@ export const settingSchema = z.object({
   description: z.string().optional(),
 });
 
+// Expense schemas
+//
+// Server actions are public endpoints — every field a client sends is
+// re-validated here rather than trusted from the form component.
+
+/** A `yyyy-MM-dd` calendar date, rejecting impossible days like 2026-02-31. */
+const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+  .refine((value) => parseCalendarDate(value) !== null, 'Not a real calendar date');
+
+/** Money must be a finite, positive number — NaN/Infinity would corrupt totals. */
+const positiveAmount = z
+  .number()
+  .refine(Number.isFinite, 'Amount must be a number')
+  .positive('Amount must be greater than zero')
+  .max(1_000_000_000, 'Amount is unrealistically large');
+
+export const expenseSchema = z.object({
+  type: z.nativeEnum(ExpenseType),
+  description: z.string().trim().min(1, 'Description is required').max(200),
+  amount: positiveAmount,
+  date: calendarDate,
+  notes: z.string().trim().max(500).optional(),
+});
+
+// Hotspot sale schemas
+
+export const hotspotSaleSchema = z.object({
+  package: z.nativeEnum(HotspotPackage),
+  quantity: z
+    .number()
+    .int('Quantity must be a whole number')
+    .min(1, 'Quantity must be at least 1')
+    .max(10_000, 'Quantity is unrealistically large'),
+  discount: z
+    .number()
+    .refine(Number.isFinite, 'Discount must be a number')
+    .min(0, 'Discount cannot be negative')
+    .optional(),
+  date: calendarDate,
+  customerName: z.string().trim().max(120).optional(),
+  customerPhone: z.string().trim().max(30).optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+
 // Type exports
 export type CustomerInput = z.infer<typeof customerSchema>;
 export type CustomerUpdateInput = z.infer<typeof customerUpdateSchema>;
@@ -120,3 +167,5 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type MonthlyReportInput = z.infer<typeof monthlyReportSchema>;
 export type DateRangeInput = z.infer<typeof dateRangeSchema>;
 export type SettingInput = z.infer<typeof settingSchema>;
+export type ExpenseInput = z.infer<typeof expenseSchema>;
+export type HotspotSaleInput = z.infer<typeof hotspotSaleSchema>;

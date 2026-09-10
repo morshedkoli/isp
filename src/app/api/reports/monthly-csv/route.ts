@@ -4,6 +4,7 @@ import { PermissionAction, PermissionModule } from '@prisma/client';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { hasPermission } from '@/lib/rbac';
 import { prisma } from '@/lib/prisma';
+import { monthBounds } from '@/lib/business-date';
 import { calculateMonthlyPartnerSettlement } from '@/lib/settlement';
 
 function escapeCsv(value: string | number) {
@@ -29,8 +30,7 @@ export async function GET(request: Request) {
   const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
   const month = Number(url.searchParams.get('month')) || new Date().getMonth() + 1;
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59);
+  const { start: startDate, end: endDate } = monthBounds(year, month);
 
   const [settlement, hotspotAgg] = await Promise.all([
     calculateMonthlyPartnerSettlement(year, month),
