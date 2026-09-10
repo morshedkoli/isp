@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { useState, Suspense } from 'react';
 import {
@@ -17,8 +17,8 @@ import {
   Receipt,
   Calendar,
 } from 'lucide-react';
+import { getClientPeriod, type Period } from '@/lib/period';
 import PeriodSelector from '@/components/ui/PeriodSelector';
-import type { Period } from '@/lib/period';
 
 type ShellUser = {
   name?: string | null;
@@ -34,6 +34,57 @@ const navigation = [
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
+
+function NavItems({
+  pathname,
+  fallbackPeriod,
+  isSidebarOpen,
+  onItemClick,
+}: {
+  pathname: string;
+  fallbackPeriod?: Period;
+  isSidebarOpen?: boolean;
+  onItemClick?: () => void;
+}) {
+  const searchParams = useSearchParams();
+  const now = new Date();
+  const cookiePeriod = getClientPeriod();
+  const currentYear = parseInt(searchParams?.get('year') || '', 10) || cookiePeriod?.year || fallbackPeriod?.year || now.getFullYear();
+  const currentMonth = parseInt(searchParams?.get('month') || '', 10) || cookiePeriod?.month || fallbackPeriod?.month || (now.getMonth() + 1);
+
+  return (
+    <>
+      {navigation.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const itemHref = item.href === '/settings'
+          ? item.href
+          : `${item.href}?year=${currentYear}&month=${currentMonth}`;
+
+        return (
+          <Link
+            key={item.name}
+            href={itemHref}
+            onClick={onItemClick}
+            className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+              isActive
+                ? 'bg-emerald-50 text-emerald-800 font-semibold shadow-sm ring-1 ring-emerald-500/10'
+                : 'text-stone-600 hover:bg-emerald-50/50 hover:text-stone-900'
+            }`}
+          >
+            {isActive && (
+              <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-emerald-600" />
+            )}
+            <item.icon
+              size={20}
+              className={`transition-colors ${isActive ? 'text-emerald-600' : 'text-stone-400 group-hover:text-emerald-600'}`}
+            />
+            {isSidebarOpen !== false && <span>{item.name}</span>}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
 
 export default function DashboardShell({
   user,
@@ -76,29 +127,13 @@ export default function DashboardShell({
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1 p-3">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-800 font-semibold shadow-sm ring-1 ring-emerald-500/10'
-                    : 'text-stone-600 hover:bg-emerald-50/50 hover:text-stone-900'
-                }`}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-emerald-600" />
-                )}
-                <item.icon
-                  size={20}
-                  className={`transition-colors ${isActive ? 'text-emerald-600' : 'text-stone-400 group-hover:text-emerald-600'}`}
-                />
-                {isSidebarOpen && <span>{item.name}</span>}
-              </Link>
-            );
-          })}
+          <Suspense fallback={null}>
+            <NavItems
+              pathname={pathname}
+              fallbackPeriod={fallbackPeriod}
+              isSidebarOpen={isSidebarOpen}
+            />
+          </Suspense>
         </nav>
 
         {/* Bottom Actions */}
@@ -136,24 +171,14 @@ export default function DashboardShell({
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-emerald-50 text-emerald-800 font-semibold shadow-sm ring-1 ring-emerald-500/10'
-                        : 'text-stone-600 hover:bg-emerald-50/50 hover:text-stone-900'
-                    }`}
-                  >
-                    <item.icon size={20} className={isActive ? 'text-emerald-600' : 'text-stone-400'} />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
+              <Suspense fallback={null}>
+                <NavItems
+                  pathname={pathname}
+                  fallbackPeriod={fallbackPeriod}
+                  isSidebarOpen={true}
+                  onItemClick={() => setIsMobileMenuOpen(false)}
+                />
+              </Suspense>
             </nav>
             <div className="absolute bottom-0 left-0 right-0 border-t border-emerald-900/5 p-3">
               <button

@@ -2,7 +2,8 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Calendar } from 'lucide-react';
-import { MONTHS, buildYearOptions, type Period } from '@/lib/period';
+import { MONTHS, buildYearOptions, PERIOD_COOKIE, PERIOD_COOKIE_MAX_AGE, getClientPeriod, type Period } from '@/lib/period';
+import { setStoredPeriodAction } from '@/lib/period-actions';
 
 interface PeriodSelectorProps {
   /** Route the selection navigates to, e.g. "/dashboard". */
@@ -33,8 +34,9 @@ export default function PeriodSelector({
   const searchParams = useSearchParams();
 
   const now = new Date();
-  const fallbackYear = fallbackPeriod?.year ?? now.getFullYear();
-  const fallbackMonth = fallbackPeriod?.month ?? now.getMonth() + 1;
+  const cookiePeriod = getClientPeriod();
+  const fallbackYear = cookiePeriod?.year ?? fallbackPeriod?.year ?? now.getFullYear();
+  const fallbackMonth = cookiePeriod?.month ?? fallbackPeriod?.month ?? now.getMonth() + 1;
   const currentYear = year ?? (parseInt(searchParams?.get('year') || '', 10) || fallbackYear);
   const currentMonth = month ?? (parseInt(searchParams?.get('month') || '', 10) || fallbackMonth);
   const activePath = basePath ?? (typeof window !== 'undefined' ? window.location.pathname : '/dashboard');
@@ -42,7 +44,15 @@ export default function PeriodSelector({
   const years = buildYearOptions(availablePeriods, currentYear);
 
   const go = (nextYear: number, nextMonth: number) => {
+    // 1. Immediately persist to document.cookie so that every client fetch & link keeps this period
+    if (typeof document !== 'undefined') {
+      document.cookie = `${PERIOD_COOKIE}=${nextYear}-${nextMonth}; path=/; max-age=${PERIOD_COOKIE_MAX_AGE}; SameSite=Lax`;
+    }
+    // 2. Call server action to update server cookie store
+    setStoredPeriodAction(nextYear, nextMonth).catch(() => {});
+    // 3. Navigate with the new query params and refresh server components
     router.push(`${activePath}?year=${nextYear}&month=${nextMonth}`);
+    router.refresh();
   };
 
   return (

@@ -34,11 +34,16 @@ interface DashboardData {
   agentPayouts: number;
   salaryTotal: number;
   fiberCableTotal: number;
+  rentTotal?: number;
+  utilitiesTotal?: number;
+  equipmentTotal?: number;
+  conveyanceTotal?: number;
   miscTotal: number;
   totalExpenses: number;
   hotspotRevenue: number;
   hotspotCount: number;
   netCommission: number;
+  hasCommissionRecord?: boolean;
   partnerShares: PartnerShare[];
   recentHotspot: {
     id: string;
@@ -98,9 +103,11 @@ export default function DashboardClient({
   const {
     monthIndex, year,
     companyCommission, agentPayouts,
-    salaryTotal, fiberCableTotal, miscTotal, totalExpenses,
+    salaryTotal, fiberCableTotal,
+    rentTotal = 0, utilitiesTotal = 0, equipmentTotal = 0, conveyanceTotal = 0,
+    miscTotal, totalExpenses,
     hotspotRevenue, hotspotCount,
-    netCommission, partnerShares, recentHotspot,
+    netCommission, hasCommissionRecord, partnerShares, recentHotspot,
   } = data;
 
   const isProfit = netCommission >= 0;
@@ -119,18 +126,33 @@ export default function DashboardClient({
         accent="commission"
         actions={
           <>
-            <Link href="/expenses" className={ui.buttonSecondary}>
+            <Link href={`/expenses?year=${year}&month=${monthIndex}`} className={ui.buttonSecondary}>
               <Receipt size={15} /> Add Expense
             </Link>
-            <Link href="/hotspot" className={ui.buttonSecondary}>
+            <Link href={`/hotspot?year=${year}&month=${monthIndex}`} className={ui.buttonSecondary}>
               <Wifi size={15} /> Hotspot Sale
             </Link>
-            <Link href="/commissions" className={ui.buttonPrimary}>
+            <Link href={`/commissions?year=${year}&month=${monthIndex}`} className={ui.buttonPrimary}>
               <Calculator size={15} /> Commissions
             </Link>
           </>
         }
       />
+
+      {!hasCommissionRecord && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs sm:text-sm text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2 font-medium">
+            <Calculator className="h-5 w-5 text-amber-600 shrink-0" />
+            <span>No commission record entered for {formatPeriod(year, monthIndex)} yet.</span>
+          </div>
+          <Link
+            href={`/commissions?year=${year}&month=${monthIndex}`}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700 transition-colors"
+          >
+            Record Commission <ArrowRight size={13} />
+          </Link>
+        </div>
+      )}
 
       {/*
         ── KPI row ───────────────────────────────────────────────────────────
@@ -197,24 +219,65 @@ export default function DashboardClient({
               accent="agent"
               indented
             />
-            <BreakdownRow
-              label="বেতন (Salaries)"
-              value={formatDeduction(salaryTotal)}
-              accent="partner"
-              indented
-            />
-            <BreakdownRow
-              label="ফাইবার ক্যাবল (Fiber Cable)"
-              value={formatDeduction(fiberCableTotal)}
-              accent="hotspot"
-              indented
-            />
-            <BreakdownRow
-              label="অন্যান্য খরচ (Misc. Expenses)"
-              value={formatDeduction(miscTotal)}
-              accent="expense"
-              indented
-            />
+            {salaryTotal > 0 && (
+              <BreakdownRow
+                label="বেতন (Salaries)"
+                value={formatDeduction(salaryTotal)}
+                accent="partner"
+                indented
+              />
+            )}
+            {fiberCableTotal > 0 && (
+              <BreakdownRow
+                label="ফাইবার ক্যাবল (Fiber Cable)"
+                value={formatDeduction(fiberCableTotal)}
+                accent="hotspot"
+                indented
+              />
+            )}
+            {rentTotal > 0 && (
+              <BreakdownRow
+                label="অফিস ও বাসা ভাড়া (Rent)"
+                value={formatDeduction(rentTotal)}
+                accent="expense"
+                indented
+              />
+            )}
+            {utilitiesTotal > 0 && (
+              <BreakdownRow
+                label="বিদ্যুৎ ও বিল (Utilities)"
+                value={formatDeduction(utilitiesTotal)}
+                accent="expense"
+                indented
+              />
+            )}
+            {equipmentTotal > 0 && (
+              <BreakdownRow
+                label="যন্ত্রপাতি ও ডিভাইস (Equipment)"
+                value={formatDeduction(equipmentTotal)}
+                accent="expense"
+                indented
+              />
+            )}
+            {conveyanceTotal > 0 && (
+              <BreakdownRow
+                label="যাতায়াত খরচ (Conveyance)"
+                value={formatDeduction(conveyanceTotal)}
+                accent="expense"
+                indented
+              />
+            )}
+            {miscTotal > 0 && (
+              <BreakdownRow
+                label="অন্যান্য খরচ (Misc. Expenses)"
+                value={formatDeduction(miscTotal)}
+                accent="expense"
+                indented
+              />
+            )}
+            {totalExpenses === 0 && (
+              <div className="px-4 py-1 text-xs italic text-stone-400">কোনো খরচ রেকর্ড করা হয়নি (No expenses)</div>
+            )}
 
             <div className="border-t-2 border-dashed border-stone-200" />
 
@@ -256,7 +319,7 @@ export default function DashboardClient({
               title="No partners added yet"
               description="Add partners to start tracking profit sharing."
               action={
-                <Link href="/partners" className={ui.buttonSecondarySm}>
+                <Link href={`/partners?year=${year}&month=${monthIndex}`} className={ui.buttonSecondarySm}>
                   Add partners <ArrowRight size={12} />
                 </Link>
               }
@@ -327,7 +390,7 @@ export default function DashboardClient({
           )}
 
           <Link
-            href="/partners"
+            href={`/partners?year=${year}&month=${monthIndex}`}
             className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700 hover:underline"
           >
             Manage partners <ArrowRight size={12} />
@@ -339,13 +402,34 @@ export default function DashboardClient({
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="এই মাসের খরচ (Expenses This Month)" icon={TrendingDown} accent="expense">
           <div className="space-y-2.5">
-            <BreakdownRow
-              label="বেতন (Salaries)"
-              value={formatTaka(salaryTotal)}
-              accent="partner"
-            />
-            <BreakdownRow label="ফাইবার ক্যাবল (Fiber Cable)" value={formatTaka(fiberCableTotal)} accent="hotspot" />
-            <BreakdownRow label="অন্যান্য খরচ (Misc. Expenses)" value={formatTaka(miscTotal)} accent="agent" />
+            {salaryTotal > 0 && (
+              <BreakdownRow
+                label="বেতন (Salaries)"
+                value={formatTaka(salaryTotal)}
+                accent="partner"
+              />
+            )}
+            {fiberCableTotal > 0 && (
+              <BreakdownRow label="ফাইবার ক্যাবল (Fiber Cable)" value={formatTaka(fiberCableTotal)} accent="hotspot" />
+            )}
+            {rentTotal > 0 && (
+              <BreakdownRow label="অফিস ও বাসা ভাড়া (Rent)" value={formatTaka(rentTotal)} accent="expense" />
+            )}
+            {utilitiesTotal > 0 && (
+              <BreakdownRow label="বিদ্যুৎ ও বিল (Utilities)" value={formatTaka(utilitiesTotal)} accent="expense" />
+            )}
+            {equipmentTotal > 0 && (
+              <BreakdownRow label="যন্ত্রপাতি ও ডিভাইস (Equipment)" value={formatTaka(equipmentTotal)} accent="expense" />
+            )}
+            {conveyanceTotal > 0 && (
+              <BreakdownRow label="যাতায়াত খরচ (Conveyance)" value={formatTaka(conveyanceTotal)} accent="expense" />
+            )}
+            {miscTotal > 0 && (
+              <BreakdownRow label="অন্যান্য খরচ (Misc. Expenses)" value={formatTaka(miscTotal)} accent="agent" />
+            )}
+            {totalExpenses === 0 && (
+              <p className="px-4 py-2 text-xs italic text-stone-400">কোনো খরচ রেকর্ড করা হয়নি (No expenses recorded)</p>
+            )}
             <div className={`flex items-center justify-between rounded-xl px-4 py-4 ${accents.expense.soft}`}>
               <span className={`font-bold ${accents.expense.text}`}>সর্বমোট খরচ (Grand Total)</span>
               <span className={`text-xl font-extrabold tabular-nums ${accents.expense.text}`}>
@@ -368,7 +452,7 @@ export default function DashboardClient({
           accent="hotspot"
           aside={
             <Link
-              href="/hotspot"
+              href={`/hotspot?year=${year}&month=${monthIndex}`}
               className="text-xs font-medium text-sky-600 transition-colors hover:text-sky-700 hover:underline"
             >
               View all
@@ -382,7 +466,7 @@ export default function DashboardClient({
               description="Voucher sales you record will appear here."
               accent="hotspot"
               action={
-                <Link href="/hotspot" className={ui.buttonSecondarySm}>
+                <Link href={`/hotspot?year=${year}&month=${monthIndex}`} className={ui.buttonSecondarySm}>
                   Record a sale <ArrowRight size={12} />
                 </Link>
               }

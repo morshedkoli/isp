@@ -17,6 +17,7 @@ interface PartnersClientProps {
     partners: Partner[];
     recentPayouts: RecentPayout[];
     availablePeriods: Period[];
+    selectedPeriod?: Period;
     autoOpenSettlement: { year: number; month: number } | null;
 }
 
@@ -24,6 +25,7 @@ export default function PartnersClient({
     partners,
     recentPayouts,
     availablePeriods,
+    selectedPeriod,
     autoOpenSettlement,
 }: PartnersClientProps) {
     const router = useRouter();
@@ -36,10 +38,11 @@ export default function PartnersClient({
     const [didAutoOpenSettlement, setDidAutoOpenSettlement] = useState(false);
 
     const initialPeriod = useMemo(() => {
+        if (selectedPeriod) return selectedPeriod;
         if (availablePeriods.length > 0) return availablePeriods[0];
         const now = new Date();
         return { year: now.getFullYear(), month: now.getMonth() + 1 };
-    }, [availablePeriods]);
+    }, [selectedPeriod, availablePeriods]);
 
     const activePartners = useMemo(() => partners.filter((p) => p.isActive), [partners]);
     const totalShare = activePartners.reduce((sum, p) => sum + p.sharePercent, 0);
@@ -50,10 +53,10 @@ export default function PartnersClient({
         const requested = availablePeriods.find(
             (period) => period.year === autoOpenSettlement.year && period.month === autoOpenSettlement.month,
         );
-        setSettlementTarget(requested || availablePeriods[0] || initialPeriod);
+        setSettlementTarget(requested || selectedPeriod || availablePeriods[0] || initialPeriod);
         setIsSettlementModalOpen(true);
         setDidAutoOpenSettlement(true);
-    }, [autoOpenSettlement, availablePeriods, didAutoOpenSettlement, initialPeriod]);
+    }, [autoOpenSettlement, availablePeriods, didAutoOpenSettlement, initialPeriod, selectedPeriod]);
 
     const openAddModal = () => {
         setEditingPartner(null);
@@ -90,7 +93,7 @@ export default function PartnersClient({
     };
 
     const openSettlementModal = () => {
-        setSettlementTarget(availablePeriods[0] || initialPeriod);
+        setSettlementTarget(selectedPeriod || availablePeriods[0] || initialPeriod);
         setIsSettlementModalOpen(true);
     };
     const closeSettlementModal = () => {

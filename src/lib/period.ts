@@ -113,3 +113,11 @@ export function parsePeriodCookie(raw: string | undefined | null): Period | null
   const month = parseInt(match[2], 10);
   return isValidPeriod(year, month) ? { year, month } : null;
 }
+
+/** Reads the client-side document.cookie if running in the browser. */
+export function getClientPeriod(): Period | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${PERIOD_COOKIE}=([^;]+)`));
+  return match ? parsePeriodCookie(decodeURIComponent(match[1])) : null;
+}
+

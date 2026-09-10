@@ -2,11 +2,10 @@ import { BarChart3, Download, FileSpreadsheet, FileText, HandCoins, Users, Recei
 import { prisma } from '@/lib/prisma';
 import { getMonthlyReport, getAgentPerformanceReport, getPartnerDueAging } from './actions';
 import { formatTaka, formatPercent } from '@/lib/format';
-import { formatPeriod, resolvePeriod, type Period } from '@/lib/period';
-import { getStoredPeriod } from '@/lib/period-server';
+import { formatPeriod, resolvePeriod } from '@/lib/period';
+import { getAvailablePeriods, getStoredPeriod } from '@/lib/period-server';
 import { accents, ui } from '@/lib/ui-tokens';
 import PageHeader from '@/components/ui/PageHeader';
-import PeriodSelector from '@/components/ui/PeriodSelector';
 import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SectionCard } from '@/components/ui/Card';
@@ -17,14 +16,9 @@ const AGING_LABELS: Record<string, string> = {
   current: 'Current month', '1-2': '1-2 months', '3-5': '3-5 months', '6+': '6+ months',
 };
 
-async function getAvailableReportPeriods(): Promise<Period[]> {
-  const periods = await prisma.commissionRecord.findMany({ select: { year: true, month: true }, distinct: ['year', 'month'] });
-  return periods.sort((a, b) => b.year - a.year || b.month - a.month);
-}
-
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string }> }) {
   const params = await searchParams;
-  const [availablePeriods, storedPeriod] = await Promise.all([getAvailableReportPeriods(), getStoredPeriod()]);
+  const [availablePeriods, storedPeriod] = await Promise.all([getAvailablePeriods(), getStoredPeriod()]);
   const { year, month } = resolvePeriod(params.year, params.month, [storedPeriod, availablePeriods[0]]);
   const [monthly, agentPerformance, aging] = await Promise.all([
     getMonthlyReport(year, month), getAgentPerformanceReport(year, month), getPartnerDueAging(),

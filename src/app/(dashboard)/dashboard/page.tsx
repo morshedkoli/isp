@@ -21,6 +21,7 @@ async function getDashboardData(year: number, month: number) {
       where: { date: { gte: start, lte: end } },
     }),
     prisma.hotspotSale.findMany({
+      where: { date: { gte: start, lte: end } },
       orderBy: { date: 'desc' },
       take: 5,
     }),
@@ -34,11 +35,16 @@ async function getDashboardData(year: number, month: number) {
     agentPayouts: settlement.agentPayouts,
     salaryTotal: settlement.salaryTotal,
     fiberCableTotal: settlement.fiberCableTotal,
+    rentTotal: settlement.rentTotal,
+    utilitiesTotal: settlement.utilitiesTotal,
+    equipmentTotal: settlement.equipmentTotal,
+    conveyanceTotal: settlement.conveyanceTotal,
     miscTotal: settlement.miscTotal,
     totalExpenses: settlement.totalExpenses,
     hotspotRevenue: hotspotAgg._sum.amount ?? 0,
     hotspotCount,
     netCommission: settlement.netCommission,
+    hasCommissionRecord: settlement.companyCommission > 0 || settlement.agentPayouts > 0,
     // Renamed to match DashboardClient's prop shape.
     partnerShares: settlement.partners.map((partner) => ({
       id: partner.partnerId,

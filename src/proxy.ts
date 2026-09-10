@@ -6,7 +6,7 @@ import { safeCallbackUrl } from '@/lib/auth-redirect';
 
 // Pages with a "Month / Year" selector — the selected period should carry
 // over between them instead of each one defaulting back to the current month.
-const PERIOD_AWARE_PATHS = ['/dashboard', '/commissions', '/hotspot', '/expenses', '/reports'];
+const PERIOD_AWARE_PATHS = ['/dashboard', '/commissions', '/hotspot', '/expenses', '/reports', '/partners'];
 
 export async function proxy(request: NextRequest) {
   const { pathname, search, searchParams } = request.nextUrl;
@@ -52,7 +52,7 @@ export async function proxy(request: NextRequest) {
   // Whenever the user views a period-aware page with an explicit ?year=&month=,
   // remember it so navigating to a different page (which links without those
   // params) still opens on the same month instead of resetting.
-  if (PERIOD_AWARE_PATHS.includes(pathname)) {
+  if (PERIOD_AWARE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
     const year = parseInt(searchParams.get('year') || '', 10);
     const month = parseInt(searchParams.get('month') || '', 10);
     if (isValidPeriod(year, month)) {
@@ -61,6 +61,7 @@ export async function proxy(request: NextRequest) {
         maxAge: PERIOD_COOKIE_MAX_AGE,
         sameSite: 'lax',
       });
+      request.cookies.set(PERIOD_COOKIE, `${year}-${month}`);
     }
   }
 
