@@ -1,25 +1,58 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Image from 'next/image';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { loginSchema, LoginInput } from '@/types/schemas';
 import { safeCallbackUrl } from '@/lib/auth-redirect';
-import { 
-  Lock, 
-  Mail, 
-  Eye, 
-  EyeOff, 
-  Radio, 
-  ShieldCheck, 
-  ArrowRight, 
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  ArrowRight,
   Sparkles,
-  Zap,
-  Layers,
-  Activity
+  Calculator,
+  Users,
+  Wifi,
+  Receipt,
 } from 'lucide-react';
+
+/**
+ * The brand asset is neon artwork on a near-black plate baked into the PNG, not
+ * a transparent background — at 28px in the old header it read as a smudge, and
+ * at any usable size it drew a visible square. `brand-plate-fade` feathers that
+ * plate away against the matching page tone (see globals.css), so the mark reads
+ * as glowing on the surface. `mix-blend-screen` was tried first and does not
+ * work here: an ancestor stacking context isolates the blend from the page
+ * background, and the plate is not pure black anyway.
+ */
+function BrandLockup({ className = '' }: { className?: string }) {
+  return (
+    <Image
+      src="/logo.png"
+      alt="GrameenWifi"
+      // Fixed intrinsic size with the display size set in CSS, so the rail and
+      // the in-card copy share one optimized variant instead of fetching the
+      // 600KB source at two different widths.
+      width={256}
+      height={256}
+      sizes="256px"
+      priority
+      className={`brand-plate-fade h-auto select-none ${className}`}
+    />
+  );
+}
+
+const CAPABILITIES = [
+  { icon: Calculator, label: 'Monthly commission settlement', hint: 'Agent payouts and company share' },
+  { icon: Users, label: 'Partner equity ledgers', hint: 'Dues, payouts and aging' },
+  { icon: Wifi, label: 'Hotspot voucher sales', hint: '7-day and 30-day packages' },
+  { icon: Receipt, label: 'ব্যবসায়িক খরচের হিসাব', hint: 'Expense tracking by category' },
+] as const;
 
 function LoginForm() {
   const router = useRouter();
@@ -85,219 +118,237 @@ function LoginForm() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between overflow-hidden bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-white">
-      {/* ── Background Atmosphere & Aurora Glows ─────────────────────── */}
+    <div className="relative min-h-screen overflow-hidden bg-[#090f1b] text-slate-100 selection:bg-emerald-500 selection:text-white">
+      {/* ── Atmosphere ───────────────────────────────────────────────────── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Top-center ambient glow */}
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-[700px] rounded-full bg-gradient-to-b from-emerald-500/20 via-teal-500/10 to-transparent blur-[120px]" />
-        
-        {/* Bottom-right subtle accent */}
-        <div className="absolute -bottom-40 -right-40 h-[450px] w-[450px] rounded-full bg-emerald-600/10 blur-[130px]" />
-
-        {/* Subtle grid mesh overlay */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
+        {/* Anchored behind the brand rail so the logo sits in its own pool of light. */}
+        <div className="absolute -left-32 top-1/4 h-[560px] w-[560px] rounded-full bg-emerald-500/12 blur-[140px]" />
+        <div className="absolute -right-40 -top-32 h-[520px] w-[520px] rounded-full bg-teal-400/10 blur-[150px]" />
+        <div className="absolute bottom-0 left-1/3 h-[400px] w-[600px] rounded-full bg-emerald-700/8 blur-[160px]" />
+        <div
+          className="absolute inset-0 opacity-[0.045]"
           style={{
-            backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px)`,
-            backgroundSize: '24px 24px'
+            backgroundImage: 'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)',
+            backgroundSize: '26px 26px',
           }}
         />
+        {/* Vignette keeps the eye on the centre column. */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(3,6,12,0.85)_100%)]" />
       </div>
 
-      {/* ── Top Header Brand ─────────────────────────────────────────── */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 p-[1px] shadow-lg shadow-emerald-500/20">
-            <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-slate-950">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon.png" alt="GrameenWifi Logo" className="h-7 w-7 object-contain rounded-lg" />
-            </div>
-          </div>
-          <div>
-            <span className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
-              Grameen<span className="text-emerald-400">Wifi</span>
-            </span>
-            <span className="block text-[10px] font-medium tracking-widest text-slate-400 uppercase">
-              Management Portal
-            </span>
-          </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-950/30 backdrop-blur-md text-xs font-medium text-emerald-300">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 sm:px-8">
+        {/* ── Slim top bar ───────────────────────────────────────────────── */}
+        <header className="flex items-center justify-between py-5">
+          <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Management Portal
           </span>
-          <span>Sarail Core System Active</span>
-        </div>
-      </header>
+          <span className="hidden items-center gap-2 whitespace-nowrap rounded-full border border-emerald-500/20 bg-emerald-950/40 px-3 py-1.5 text-[11px] font-medium text-emerald-300 backdrop-blur-md sm:inline-flex">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            Sarail core system active
+          </span>
+        </header>
 
-      {/* ── Main Authentication Form Card ─────────────────────────────── */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
-          
-          {/* Card Wrapper with layered glassmorphism border */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/60 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
-            
-            {/* Subtle card top highlight line */}
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+        <main className="grid flex-1 items-center gap-10 py-6 lg:grid-cols-[1.05fr_minmax(0,420px)] lg:gap-16 lg:py-10">
+          {/* ── Brand rail ───────────────────────────────────────────────── */}
+          <section className="hidden lg:block" aria-labelledby="brand-heading">
+            <BrandLockup className="-ml-2 w-56 drop-shadow-[0_0_45px_rgba(16,185,129,0.28)]" />
 
-            {/* Header / Brand in Card */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-emerald-400 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-                <Radio className="h-7 w-7 animate-pulse" />
+            <h2
+              id="brand-heading"
+              className="mt-5 max-w-md text-[2.25rem] font-bold leading-[1.08] tracking-tight text-white xl:text-[2.6rem]"
+            >
+              Network operations,
+              <span className="block bg-gradient-to-r from-emerald-300 via-teal-200 to-emerald-400 bg-clip-text text-transparent">
+                one console.
+              </span>
+            </h2>
+            <p className="mt-3.5 max-w-sm text-sm leading-relaxed text-slate-400">
+              Billing cycles, partner settlements and field expenses for the Kalikaccha network —
+              tracked month by month.
+            </p>
+
+            <ul className="mt-7 max-w-md space-y-0.5">
+              {CAPABILITIES.map(({ icon: Icon, label, hint }) => (
+                <li
+                  key={label}
+                  className="group flex items-center gap-3.5 rounded-xl px-3 py-2 transition-colors hover:bg-white/[0.03]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/15 bg-emerald-500/[0.07] text-emerald-400 transition-colors group-hover:border-emerald-400/35 group-hover:text-emerald-300">
+                    <Icon size={16} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-slate-200">{label}</span>
+                    <span className="block text-xs text-slate-500">{hint}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* ── Auth card ────────────────────────────────────────────────── */}
+          <section aria-labelledby="signin-heading" className="mx-auto w-full max-w-md lg:mx-0">
+            <div className="relative overflow-hidden rounded-3xl border border-white/[0.07] bg-slate-950/60 p-7 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] backdrop-blur-2xl sm:p-9">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+
+              {/* The rail is hidden below lg, so the card carries the brand there.
+                  Inside the card the surface is darker than the page, so the
+                  feathered plate would show a seam — this tile is painted the
+                  plate colour, turning it into a deliberate brand block. */}
+              <div className="mb-6 flex justify-center lg:hidden">
+                <span className="inline-flex items-center justify-center rounded-2xl border border-emerald-500/15 bg-[#090f1b] p-1.5 shadow-[0_0_34px_rgba(16,185,129,0.2)]">
+                  <BrandLockup className="w-[124px]" />
+                </span>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                Administrator Sign In
-              </h1>
-              <p className="mt-2 text-xs sm:text-sm text-slate-400">
-                Authorized ISP staff & accounting access only
-              </p>
-            </div>
 
-            {/* Error Notification Banner */}
-            {error && (
-              <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-950/40 p-4 text-xs sm:text-sm text-rose-300 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="h-2 w-2 rounded-full bg-rose-400 mt-1.5 flex-shrink-0 animate-pulse" />
-                <div className="flex-1">
-                  <p className="font-medium text-rose-200">{error}</p>
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              
-              {/* Email Address */}
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Admin Email
-                </label>
-                <div className="relative group">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-400 transition-colors">
-                    <Mail size={18} />
-                  </div>
-                  <input
-                    {...register('email')}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="admin@isp.com"
-                    className="w-full rounded-xl border border-slate-700/70 bg-slate-900/80 py-3 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all duration-200 focus:border-emerald-400 focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/15"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-1.5 text-xs text-rose-400 font-medium">{errors.email.message}</p>
-                )}
+              <div className="mb-7">
+                <h1
+                  id="signin-heading"
+                  className="text-2xl font-bold tracking-tight text-white sm:text-[1.75rem]"
+                >
+                  Administrator sign in
+                </h1>
+                <p className="mt-1.5 text-sm text-slate-400">
+                  Authorized ISP staff and accounting access only.
+                </p>
               </div>
 
-              {/* Password */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                    Security Password
-                  </label>
+              {error && (
+                <div
+                  role="alert"
+                  className="mb-6 flex items-start gap-3 rounded-xl border border-rose-500/25 bg-rose-950/40 p-3.5 text-sm text-rose-200"
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
+                  <p className="flex-1 font-medium">{error}</p>
                 </div>
-                <div className="relative group">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-400 transition-colors">
-                    <Lock size={18} />
-                  </div>
-                  <input
-                    {...register('password')}
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border border-slate-700/70 bg-slate-900/80 py-3 pl-11 pr-11 text-sm text-white placeholder-slate-500 outline-none transition-all duration-200 focus:border-emerald-400 focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/15"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-300 transition-colors focus:outline-none"
+              )}
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                    Admin email
+                  </label>
+                  <div className="group relative">
+                    <Mail
+                      size={17}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-emerald-400"
+                    />
+                    <input
+                      {...register('email')}
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="admin@isp.com"
+                      aria-invalid={Boolean(errors.email)}
+                      className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 outline-none transition-all duration-200 focus:border-emerald-400/60 focus:bg-white/[0.05] focus:ring-4 focus:ring-emerald-500/15"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="mt-1.5 text-xs font-medium text-rose-400">{errors.email.message}</p>
+                  )}
                 </div>
-                {errors.password && (
-                  <p className="mt-1.5 text-xs text-rose-400 font-medium">{errors.password.message}</p>
-                )}
-              </div>
 
-              {/* Submit CTA Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative mt-2 w-full overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 py-3.5 text-sm font-bold text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-500 hover:shadow-[0_0_35px_rgba(16,185,129,0.45)] hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400"
+                  >
+                    Security password
+                  </label>
+                  <div className="group relative">
+                    <Lock
+                      size={17}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-emerald-400"
+                    />
+                    <input
+                      {...register('password')}
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      aria-invalid={Boolean(errors.password)}
+                      className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 pl-11 pr-11 text-sm text-white placeholder-slate-600 outline-none transition-all duration-200 focus:border-emerald-400/60 focus:bg-white/[0.05] focus:ring-4 focus:ring-emerald-500/15"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                    >
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="mt-1.5 text-xs font-medium text-rose-400">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="group relative mt-1 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 py-3.5 text-sm font-bold text-[#04120c] shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] transition-all duration-300 hover:shadow-[0_14px_38px_-8px_rgba(16,185,129,0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 active:scale-[0.99] disabled:cursor-wait disabled:opacity-70"
+                >
                   {isLoading ? (
                     <>
-                      <svg className="h-5 w-5 animate-spin text-slate-950" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
                       </svg>
-                      <span>Authenticating System...</span>
+                      Authenticating…
                     </>
                   ) : (
                     <>
-                      <span>Enter Control Panel</span>
-                      <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
+                      Enter control panel
+                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                     </>
                   )}
-                </span>
-              </button>
-            </form>
+                </button>
+              </form>
 
-            {/* Quick Demo Credentials Autofill Pill */}
-            <div className="mt-6 pt-5 border-t border-slate-800/80">
-              <button
-                type="button"
-                onClick={handleFillDemo}
-                className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-500/20 text-xs font-medium text-emerald-300 hover:text-emerald-200 transition-all duration-200"
-              >
-                <div className="flex items-center gap-2">
-                  <Sparkles size={14} className="text-emerald-400" />
-                  <span>Demo Admin Access</span>
-                </div>
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-semibold">
-                  {filledDemo ? '✓ Filled!' : 'Click to Auto-fill'}
-                </span>
-              </button>
+              <div className="mt-6 border-t border-white/[0.06] pt-5">
+                <button
+                  type="button"
+                  onClick={handleFillDemo}
+                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.06] px-3.5 py-2.5 text-xs font-medium text-emerald-300 transition-all duration-200 hover:border-emerald-400/30 hover:bg-emerald-500/[0.12] hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles size={14} />
+                    Demo admin access
+                  </span>
+                  <span className="rounded-md bg-emerald-400/15 px-2 py-0.5 text-[11px] font-semibold">
+                    {filledDemo ? '✓ Filled' : 'Auto-fill'}
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
+          </section>
+        </main>
 
-          {/* Feature Badges below card */}
-          <div className="mt-8 grid grid-cols-3 gap-2 px-2">
-            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm text-center">
-              <Zap size={16} className="text-emerald-400 mb-1.5" />
-              <span className="text-[11px] font-semibold text-slate-200">Real-Time</span>
-              <span className="text-[9px] text-slate-400">Cycle Billing</span>
-            </div>
-            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm text-center">
-              <Layers size={16} className="text-teal-400 mb-1.5" />
-              <span className="text-[11px] font-semibold text-slate-200">Settlements</span>
-              <span className="text-[9px] text-slate-400">Partner Ledgers</span>
-            </div>
-            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm text-center">
-              <ShieldCheck size={16} className="text-emerald-400 mb-1.5" />
-              <span className="text-[11px] font-semibold text-slate-200">256-Bit</span>
-              <span className="text-[9px] text-slate-400">Encrypted Auth</span>
-            </div>
-          </div>
-
-        </div>
-      </main>
-
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 text-center text-xs text-slate-500 font-medium">
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          <span>GrameenWifi Network Administration</span>
-          <span className="hidden sm:inline">·</span>
+        <footer className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 py-6 text-center text-xs font-medium text-slate-600 lg:justify-between">
           <span>Kalikaccha, Sarail, Brahmanbaria</span>
-          <span className="hidden sm:inline">·</span>
           <span suppressHydrationWarning>
-            © {new Date().getFullYear()} All Rights Reserved
+            © {new Date().getFullYear()} GrameenWifi · All rights reserved
           </span>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }

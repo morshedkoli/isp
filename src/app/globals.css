@@ -85,3 +85,21 @@ body {
 .animate-progress-slide {
   animation: progress-slide 1.1s ease-in-out infinite;
 }
+
+/*
+ * The brand PNG is neon artwork on a near-black plate (~#090f1b) baked into the
+ * image rather than an alpha channel, so at any size it draws a visible square.
+ * The login surface is painted the same tone and the outer few percent of the
+ * image is feathered away, which dissolves the seam without touching the mark.
+ * Only use this over a surface close to that plate colour.
+ */
+.brand-plate-fade {
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent, #000 13%, #000 90%, transparent),
+    linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent, #000 13%, #000 90%, transparent),
+    linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-composite: intersect;
+}
