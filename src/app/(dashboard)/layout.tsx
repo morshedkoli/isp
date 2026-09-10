@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { resolvePeriod } from '@/lib/period';
 import { getAvailablePeriods, getStoredPeriod } from '@/lib/period-server';
+import { PeriodTransitionProvider } from '@/components/ui/PeriodTransition';
 import DashboardShell from './DashboardShell';
 
 export default async function DashboardLayout({
@@ -33,12 +34,16 @@ export default async function DashboardLayout({
   ]);
 
   return (
-    <DashboardShell
-      user={session.user}
-      fallbackPeriod={fallbackPeriod}
-      availablePeriods={availablePeriods}
-    >
-      {children}
-    </DashboardShell>
+    // Sits above the shell so the selector in the header and the page content
+    // below it share one pending flag.
+    <PeriodTransitionProvider>
+      <DashboardShell
+        user={session.user}
+        fallbackPeriod={fallbackPeriod}
+        availablePeriods={availablePeriods}
+      >
+        {children}
+      </DashboardShell>
+    </PeriodTransitionProvider>
   );
 }

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getClientPeriod, type Period } from '@/lib/period';
 import PeriodSelector from '@/components/ui/PeriodSelector';
+import { usePeriodTransition } from '@/components/ui/PeriodTransition';
 
 type ShellUser = {
   name?: string | null;
@@ -102,9 +103,18 @@ export default function DashboardShell({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isPending } = usePeriodTransition();
 
   return (
     <div className="min-h-screen bg-soft-pattern text-stone-900" suppressHydrationWarning>
+      {/* Indeterminate progress bar — the only full-width signal that a period
+          change is still fetching, visible no matter where the page is scrolled. */}
+      {isPending && (
+        <div className="fixed inset-x-0 top-0 z-[60] h-0.5 overflow-hidden bg-emerald-100/80">
+          <div className="animate-progress-slide h-full w-1/3 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-600 to-teal-500" />
+        </div>
+      )}
+
       {/* Sidebar for desktop */}
       <aside
         className={`fixed left-0 top-0 z-40 h-screen bg-white/90 backdrop-blur-md border-r border-emerald-900/5 shadow-[4px_0_24px_rgba(16,185,129,0.03)] transition-all duration-300 ease-in-out hidden lg:block ${
@@ -251,7 +261,18 @@ export default function DashboardShell({
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="p-4 lg:p-8">
+          {/* Stale figures are dimmed and made inert rather than hidden, so the
+              layout does not jump and the previous month stays readable. */}
+          <div
+            aria-busy={isPending}
+            className={`transition-opacity duration-200 ${
+              isPending ? 'pointer-events-none select-none opacity-40' : 'opacity-100'
+            }`}
+          >
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );
