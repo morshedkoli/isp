@@ -126,6 +126,12 @@ export async function createExpense(input: unknown) {
     });
 
     revalidatePath('/expenses');
+    revalidatePath('/commissions');
+    revalidatePath('/balances');
+    revalidatePath('/partners', 'layout');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly');
+    revalidatePath('/reports');
     return { success: true as const, expense, period: { year: parts.year, month: parts.month } };
   } catch (error: unknown) {
     console.error('Create expense error:', error);
@@ -174,6 +180,12 @@ export async function updateExpense(id: string, input: unknown) {
     );
 
     revalidatePath('/expenses');
+    revalidatePath('/commissions');
+    revalidatePath('/balances');
+    revalidatePath('/partners', 'layout');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly');
+    revalidatePath('/reports');
     return { success: true as const, expense, period: { year: parts.year, month: parts.month } };
   } catch (error: unknown) {
     console.error('Update expense error:', error);
@@ -201,6 +213,12 @@ export async function deleteExpense(id: string) {
     });
 
     revalidatePath('/expenses');
+    revalidatePath('/commissions');
+    revalidatePath('/balances');
+    revalidatePath('/partners', 'layout');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly');
+    revalidatePath('/reports');
     return { success: true as const };
   } catch (error: unknown) {
     console.error('Delete expense error:', error);

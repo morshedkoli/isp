@@ -25,6 +25,7 @@ export async function createAgent(data: {
         });
 
         revalidatePath('/commissions');
+        revalidatePath('/balances');
         return { success: true, agent };
     } catch (error: unknown) {
         console.error('Create agent error:', error);
@@ -51,6 +52,7 @@ export async function updateAgent(
         );
 
         revalidatePath('/commissions');
+        revalidatePath('/balances');
         return { success: true, agent };
     } catch (error: unknown) {
         console.error('Update agent error:', error);
@@ -189,6 +191,11 @@ export async function saveCommissionRecord(data: {
         }
 
         revalidatePath('/commissions');
+        revalidatePath('/balances');
+        revalidatePath('/partners', 'layout');
+        revalidatePath('/dashboard');
+        revalidatePath('/monthly');
+        revalidatePath('/reports');
         return { success: true, record };
     } catch (error: unknown) {
         console.error('Save commission record error:', error);

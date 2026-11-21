@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Users, Check, Save, RefreshCw, X, Edit2, Receipt, DollarSign, Sparkles, Building2 } from 'lucide-react';
+import { Plus, Users, Check, Save, RefreshCw, X, Receipt, DollarSign, Sparkles, Building2, ArrowRight } from 'lucide-react';
 import { SectionCard } from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatTaka } from '@/lib/format';
@@ -190,8 +191,8 @@ export default function CalculatorTab({
                 <Check size={14} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-stone-900">Saved Record Loaded</p>
-                <p className="text-xs text-stone-500">Record for this period is loaded from the database.</p>
+                <p className="text-sm font-semibold text-stone-900">Saved & Credited to Partner Profiles</p>
+                <p className="text-xs text-stone-500">This period&apos;s calculated shares are active in partner balances.</p>
               </div>
             </>
           ) : (
@@ -201,11 +202,19 @@ export default function CalculatorTab({
               </span>
               <div>
                 <p className="text-sm font-semibold text-stone-900">New Calculation Period</p>
-                <p className="text-xs text-stone-500">Enter ISP pool and agent commissions below.</p>
+                <p className="text-xs text-stone-500">Enter ISP pool and agent commissions below — saving credits partner balances.</p>
               </div>
             </>
           )}
         </div>
+        {record && (
+          <Link
+            href={`/partners?year=${year}&month=${month}`}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-900/10 transition-colors hover:bg-emerald-100"
+          >
+            Partner Profiles & Balances <ArrowRight size={13} />
+          </Link>
+        )}
       </div>
 
       {error && (

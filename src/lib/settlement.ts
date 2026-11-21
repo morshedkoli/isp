@@ -4,10 +4,12 @@
  * netCommission = companyCommission (total pool) − agent payouts − operating expenses
  * Each partner's due share = netCommission × sharePercent / 100
  *
- * Shared between the Dashboard and Partners pages so the two never drift.
+ * Shared between the Dashboard, Reports, and Partners pages so they never drift.
  */
 
 import { prisma } from '@/lib/prisma';
+import { cleanMoney, fetchAllPartnerLedgers } from './partner-ledger';
+import { periodKey } from './period';
 
 export function settlementRef(year: number, month: number): string {
   return `SETTLEMENT-${year}-${String(month).padStart(2, '0')}`;
@@ -20,6 +22,8 @@ export interface PartnerSettlementRow {
   dueAmount: number;
   paidAmount: number;
   remainingAmount: number;
+  /** Overall cumulative balance on this partner's profile across all months */
+  balance?: number;
 }
 
 export interface MonthlyCommissionSettlement {
@@ -45,6 +49,7 @@ export interface SettlementPartnerInput {
   id: string;
   name: string;
   sharePercent: number;
+  balance?: number;
 }
 
 export interface SettlementCalculationInputs {
@@ -93,13 +98,16 @@ export function computeMonthlyPartnerSettlement(
   const partners: PartnerSettlementRow[] = inputs.partners.map((partner) => {
     const dueAmount = netCommission > 0 ? (netCommission * partner.sharePercent) / 100 : 0;
     const paidAmount = inputs.paidByPartner[partner.id] ?? 0;
+    const rawRemaining = dueAmount - paidAmount;
+    const remainingAmount = rawRemaining > 0.005 ? rawRemaining : 0;
     return {
       partnerId: partner.id,
       partnerName: partner.name,
       sharePercent: partner.sharePercent,
       dueAmount,
       paidAmount,
-      remainingAmount: Math.max(dueAmount - paidAmount, 0),
+      remainingAmount,
+      ...(partner.balance !== undefined ? { balance: partner.balance } : {}),
     };
   });
 
@@ -127,76 +135,38 @@ export async function calculateMonthlyPartnerSettlement(
   year: number,
   month: number
 ): Promise<MonthlyCommissionSettlement> {
-  const [
-    commissionRecord,
-    salaryAgg,
-    fiberCableAgg,
-    rentAgg,
-    utilitiesAgg,
-    equipmentAgg,
-    conveyanceAgg,
-    miscAgg,
-    partners,
-    settlementPayouts,
-  ] = await Promise.all([
+  const [commissionRecord, expenseGroups, ledgers] = await Promise.all([
     prisma.commissionRecord.findFirst({
       where: { year, month },
       orderBy: { createdAt: 'desc' },
       include: { agentEntries: true },
     }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'SALARY' },
+    prisma.expense.groupBy({
+      by: ['type'],
+      where: { year, month },
       _sum: { amount: true },
     }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'FIBER_CABLE' },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'RENT' },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'UTILITIES' },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'EQUIPMENT' },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'CONVEYANCE' },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { year, month, type: 'MISC' },
-      _sum: { amount: true },
-    }),
-    prisma.partner.findMany({
-      where: { isActive: true },
-      include: { user: { select: { name: true } } },
-      orderBy: { sharePercent: 'desc' },
-    }),
-    prisma.partnerPayout.findMany({
-      where: { isSettlement: true, settlementYear: year, settlementMonth: month },
-      select: { partnerId: true, amount: true },
-    }),
+    fetchAllPartnerLedgers({ year, month }),
   ]);
+
+  const byType: Record<string, number> = {};
+  for (const g of expenseGroups) {
+    byType[g.type] = g._sum.amount ?? 0;
+  }
 
   const companyCommission = commissionRecord?.totalPool ?? 0;
   const agentPayouts = commissionRecord?.agentEntries.reduce((sum, entry) => sum + entry.amount, 0) ?? 0;
-  const salaryTotal = salaryAgg._sum.amount ?? 0;
-  const fiberCableTotal = fiberCableAgg._sum.amount ?? 0;
-  const rentTotal = rentAgg._sum.amount ?? 0;
-  const utilitiesTotal = utilitiesAgg._sum.amount ?? 0;
-  const equipmentTotal = equipmentAgg._sum.amount ?? 0;
-  const conveyanceTotal = conveyanceAgg._sum.amount ?? 0;
-  const miscTotal = miscAgg._sum.amount ?? 0;
+  const salaryTotal = byType.SALARY ?? 0;
+  const fiberCableTotal = byType.FIBER_CABLE ?? 0;
+  const rentTotal = byType.RENT ?? 0;
+  const utilitiesTotal = byType.UTILITIES ?? 0;
+  const equipmentTotal = byType.EQUIPMENT ?? 0;
+  const conveyanceTotal = byType.CONVEYANCE ?? 0;
+  const miscTotal = byType.MISC ?? 0;
 
-  const paidByPartner: Record<string, number> = {};
-  for (const payout of settlementPayouts) {
-    paidByPartner[payout.partnerId] = (paidByPartner[payout.partnerId] ?? 0) + payout.amount;
-  }
+  const activeLedgers = ledgers.list.filter((p) => p.isActive);
+  const key = periodKey(year, month);
+  const paidByPartner = ledgers.allocatedPaidByPeriod[key] ?? {};
 
   return computeMonthlyPartnerSettlement({
     year,
@@ -210,10 +180,11 @@ export async function calculateMonthlyPartnerSettlement(
     equipmentTotal,
     conveyanceTotal,
     miscTotal,
-    partners: partners.map((partner) => ({
-      id: partner.id,
-      name: partner.user?.name ?? 'Partner',
+    partners: activeLedgers.map((partner) => ({
+      id: partner.partnerId,
+      name: partner.name,
       sharePercent: partner.sharePercent,
+      balance: cleanMoney(partner.balance),
     })),
     paidByPartner,
   });

@@ -1,70 +1,92 @@
-import { businessToday } from '@/lib/business-date';
+import { businessToday, toCalendarDate } from '@/lib/business-date';
 import { formatTaka } from '@/lib/format';
+import type {
+  AdjustmentDirection,
+  PartnerLedgerEntry,
+  PartnerMonthlyEarningRow,
+  PaymentMethodType,
+} from '@/lib/partner-ledger';
 
-export interface Partner {
-    id: string;
-    sharePercent: number;
-    isActive: boolean;
-    createdAt: Date;
-    user: {
-        name: string;
-        email: string;
-        phone?: string | null;
-    };
+export type {
+  AdjustmentDirection,
+  PartnerLedgerEntry,
+  PartnerMonthlyEarningRow,
+  PaymentMethodType,
+};
+
+export interface PartnerSummary {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  sharePercent: number;
+  isActive: boolean;
+  createdAt: string;
+  totalEarned: number;
+  totalCreditAdjustments: number;
+  totalDebitAdjustments: number;
+  totalPaid: number;
+  balance: number;
+  thisMonthEarned: number;
+  thisMonthPaid: number;
+  calculatedMonthsCount: number;
+  payoutsCount: number;
 }
 
 export interface Period {
-    year: number;
-    month: number;
+  year: number;
+  month: number;
 }
 
 export interface RecentPayout {
-    id: string;
-    partnerName: string;
-    amount: number;
-    date: string;
-    method: 'CASH' | 'BKASH' | 'NAGAD' | 'BANK' | 'OTHER';
-    referenceId?: string | null;
-    notes?: string | null;
-    /** Set when the payout was created by the monthly settlement flow. */
-    isSettlement?: boolean;
-    settlementYear?: number | null;
-    settlementMonth?: number | null;
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  amount: number;
+  date: string;
+  method: PaymentMethodType;
+  referenceId?: string | null;
+  notes?: string | null;
+  isSettlement?: boolean;
+  settlementYear?: number | null;
+  settlementMonth?: number | null;
 }
 
 export interface SettlementPartnerRow {
-    partnerId: string;
-    partnerName: string;
-    sharePercent: number;
-    dueAmount: number;
-    paidAmount: number;
-    remainingAmount: number;
+  partnerId: string;
+  partnerName: string;
+  sharePercent: number;
+  dueAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
 }
 
 export const MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-export const PAYMENT_METHODS: Array<RecentPayout['method']> = ['CASH', 'BKASH', 'NAGAD', 'BANK', 'OTHER'];
+export const PAYMENT_METHODS: PaymentMethodType[] = ['CASH', 'BKASH', 'NAGAD', 'BANK', 'OTHER'];
 
-/**
- * Today in the business timezone. `toISOString()` returned the UTC day, which
- * is the previous date between midnight and 06:00 in Dhaka.
- */
 export const todayInputValue = () => businessToday();
 
-/**
- * @deprecated Import `formatTaka` from `@/lib/format` instead. Kept as a
- * delegating alias — this rendered "BDT 1,234" while the rest of the app
- * rendered "৳1,234", so partner settlement screens looked like another product.
- */
+export const dateToInputValue = (isoOrDate: string | Date) => toCalendarDate(isoOrDate);
+
 export const formatMoney = (amount: number) => formatTaka(amount, { decimals: true });
 
-export const formatMethod = (method: RecentPayout['method']) => {
-    switch (method) {
-        case 'BKASH': return 'bKash';
-        case 'NAGAD': return 'Nagad';
-        default: return method;
-    }
+export const formatMethod = (method: PaymentMethodType | string) => {
+  switch (method) {
+    case 'CASH':
+      return 'Cash';
+    case 'BKASH':
+      return 'bKash';
+    case 'NAGAD':
+      return 'Nagad';
+    case 'BANK':
+      return 'Bank';
+    case 'OTHER':
+      return 'Other';
+    default:
+      return method;
+  }
 };

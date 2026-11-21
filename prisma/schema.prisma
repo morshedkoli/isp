@@ -62,6 +62,9 @@ model User {
   hotspotSales      HotspotSale[] @relation("HotspotSaleCreatedBy")
   commissionRecords CommissionRecord[] @relation("CommissionRecordCreatedBy")
   expenses          Expense[]   @relation("ExpenseCreatedBy")
+  partnerAdjustments PartnerAdjustment[] @relation("PartnerAdjustmentCreatedBy")
+  agentPayouts      AgentPayout[] @relation("AgentPayoutCreatedBy")
+  agentAdjustments  AgentAdjustment[] @relation("AgentAdjustmentCreatedBy")
   
   @@map("users")
 }
@@ -122,6 +125,7 @@ model Partner {
   // Relations
   user          User      @relation(fields: [userId], references: [id])
   payouts       PartnerPayout[]
+  adjustments   PartnerAdjustment[]
   
   @@map("partners")
 }
@@ -389,6 +393,32 @@ model PartnerPayout {
   @@map("partner_payouts")
 }
 
+enum AdjustmentType {
+  CREDIT // Increases partner's balance
+  DEBIT  // Deducts from partner's balance
+}
+
+// Manual balance adjustment on a partner's profile (opening balance, write-off, bonus, etc.)
+model PartnerAdjustment {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  partnerId   String         @db.ObjectId
+  type        AdjustmentType
+  amount      Float
+  date        DateTime
+  reason      String
+  notes       String?
+  createdById String         @db.ObjectId
+
+  // Relations
+  partner     Partner        @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation("PartnerAdjustmentCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("partner_adjustments")
+}
+
 // Audit log
 model AuditLog {
   id              String    @id @default(auto()) @map("_id") @db.ObjectId
@@ -485,8 +515,48 @@ model CommissionAgent {
   updatedAt         DateTime                @updatedAt
 
   agentEntries      AgentCommissionEntry[]
+  payouts           AgentPayout[]
+  adjustments       AgentAdjustment[]
 
   @@map("commission_agents")
+}
+
+model AgentPayout {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  agentId     String          @db.ObjectId
+  amount      Float
+  date        DateTime
+  method      PaymentMethod
+  referenceId String?
+  notes       String?
+  createdById String          @db.ObjectId
+
+  agent       CommissionAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("AgentPayoutCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("agent_payouts")
+}
+
+model AgentAdjustment {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  agentId     String          @db.ObjectId
+  type        AdjustmentType
+  amount      Float
+  date        DateTime
+  reason      String
+  notes       String?
+  createdById String          @db.ObjectId
+
+  agent       CommissionAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("AgentAdjustmentCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("agent_adjustments")
 }
 
 // One record per month — holds the pool and our own cut

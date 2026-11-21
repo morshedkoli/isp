@@ -22,10 +22,11 @@ export async function getStoredPeriod(): Promise<Period | null> {
  * on what "a period with data" means.
  */
 export async function getAvailablePeriods(): Promise<Period[]> {
-  const [commissions, expenses, hotspotSales] = await Promise.all([
+  const [commissions, expenses, hotspotSales, payouts] = await Promise.all([
     prisma.commissionRecord.findMany({ select: { year: true, month: true } }),
     prisma.expense.findMany({ select: { year: true, month: true } }),
     prisma.hotspotSale.findMany({ select: { date: true } }),
+    prisma.partnerPayout.findMany({ select: { date: true } }),
   ]);
 
   const keys = new Set<string>();
@@ -35,6 +36,10 @@ export async function getAvailablePeriods(): Promise<Period[]> {
     // Business timezone, not the server's — otherwise a sale on the 1st shows
     // up under the previous month on a host west of UTC.
     const { year, month } = periodOf(sale.date);
+    keys.add(`${year}-${month}`);
+  }
+  for (const payout of payouts) {
+    const { year, month } = periodOf(payout.date);
     keys.add(`${year}-${month}`);
   }
 

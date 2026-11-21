@@ -1,10 +1,17 @@
 import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
+import { periodOf } from '@/lib/business-date';
 import { prisma } from '@/lib/prisma';
-import { periodBounds, resolvePeriod } from '@/lib/period';
+import {
+  fetchAllPartnerLedgers,
+  getPreviousPeriod,
+  isBeforePeriod,
+} from '@/lib/partner-ledger';
+import { resolvePeriod } from '@/lib/period';
 import { getAvailablePeriods, getStoredPeriod } from '@/lib/period-server';
 import PartnersClient from './PartnersClient';
+import type { PartnerSummary, PaymentMethodType } from './shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,42 +24,35 @@ export default async function PartnersPage({
   if (!session) redirect('/login');
 
   const params = await searchParams;
+  const currentPeriod = periodOf(new Date());
+  const lastCompletedPeriod = getPreviousPeriod(currentPeriod);
 
-  // Resolved before the payout query, which now filters on it — the payout list
-  // used to show the latest 20 rows of all time under a month selector.
-  const [availablePeriods, storedPeriod] = await Promise.all([
+  const [allPeriods, storedPeriod] = await Promise.all([
     getAvailablePeriods(),
     getStoredPeriod(),
   ]);
 
-  const selectedPeriod = resolvePeriod(params.year, params.month, [
-    storedPeriod,
+  // Partner account & pay views always exclude the ongoing current month.
+  const availablePeriods = allPeriods.filter((p) =>
+    isBeforePeriod(p.year, p.month, currentPeriod),
+  );
+  const safeStored =
+    storedPeriod && isBeforePeriod(storedPeriod.year, storedPeriod.month, currentPeriod)
+      ? storedPeriod
+      : null;
+
+  const candidate = resolvePeriod(params.year, params.month, [
+    safeStored,
     availablePeriods[0],
+    lastCompletedPeriod,
   ]);
+  const selectedPeriod = isBeforePeriod(candidate.year, candidate.month, currentPeriod)
+    ? candidate
+    : availablePeriods[0] || lastCompletedPeriod;
 
-  const { start, end } = periodBounds(selectedPeriod.year, selectedPeriod.month);
-
-  const [partners, periodPayouts] = await Promise.all([
-    // Master data, not period data — the full roster is always shown.
-    prisma.partner.findMany({
-      include: {
-        user: { select: { name: true, email: true, phone: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
+  const [ledgers, recentPayouts] = await Promise.all([
+    fetchAllPartnerLedgers(selectedPeriod),
     prisma.partnerPayout.findMany({
-      // A payout belongs to the selected month if it was *paid* in it, or if it
-      // settles it — a March settlement paid in April is relevant to both.
-      where: {
-        OR: [
-          { date: { gte: start, lte: end } },
-          {
-            isSettlement: true,
-            settlementYear: selectedPeriod.year,
-            settlementMonth: selectedPeriod.month,
-          },
-        ],
-      },
       include: {
         partner: {
           include: {
@@ -60,19 +60,40 @@ export default async function PartnersPage({
           },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      take: 30,
     }),
   ]);
+
+  const partners: PartnerSummary[] = ledgers.list.map((p) => ({
+    id: p.partnerId,
+    name: p.name,
+    email: p.email,
+    phone: p.phone,
+    sharePercent: p.sharePercent,
+    isActive: p.isActive,
+    createdAt: p.createdAt,
+    totalEarned: p.totalEarned,
+    totalCreditAdjustments: p.totalCreditAdjustments,
+    totalDebitAdjustments: p.totalDebitAdjustments,
+    totalPaid: p.totalPaid,
+    balance: p.balance,
+    thisMonthEarned: p.thisMonthEarned,
+    thisMonthPaid: p.thisMonthPaid,
+    calculatedMonthsCount: p.calculatedMonthsCount,
+    payoutsCount: p.payoutsCount,
+  }));
 
   return (
     <PartnersClient
       partners={partners}
-      recentPayouts={periodPayouts.map((row) => ({
+      recentPayouts={recentPayouts.map((row) => ({
         id: row.id,
+        partnerId: row.partnerId,
         partnerName: row.partner?.user?.name ?? 'Partner',
         amount: row.amount,
         date: row.date.toISOString(),
-        method: row.method,
+        method: row.method as PaymentMethodType,
         referenceId: row.referenceId,
         notes: row.notes,
         isSettlement: row.isSettlement,
@@ -81,12 +102,13 @@ export default async function PartnersPage({
       }))}
       availablePeriods={availablePeriods}
       selectedPeriod={selectedPeriod}
+      excludedCurrentPeriod={currentPeriod}
       autoOpenSettlement={
         params.settle === '1'
           ? {
-            year: selectedPeriod.year,
-            month: selectedPeriod.month,
-          }
+              year: selectedPeriod.year,
+              month: selectedPeriod.month,
+            }
           : null
       }
     />

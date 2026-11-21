@@ -190,17 +190,21 @@ export default function CalculatorSummary({
               return (
                 <div key={partner.id} className="space-y-1">
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <div className="flex min-w-0 items-center gap-2">
+                    <Link
+                      href={`/partners/${partner.id}?year=${year}&month=${month}`}
+                      className="group flex min-w-0 items-center gap-2 hover:text-emerald-700"
+                      title="Open partner profile & balance"
+                    >
                       <div className={`h-2 w-2 shrink-0 rounded-full ${accent.bar}`} />
-                      <span className="truncate font-semibold text-stone-800">
+                      <span className="truncate font-semibold text-stone-800 group-hover:text-emerald-700 group-hover:underline">
                         {partner.user?.name ?? 'Partner'}
                       </span>
                       <span className="shrink-0 text-[11px] text-stone-400 font-medium">
                         ({formatPercent(partner.sharePercent)})
                       </span>
-                    </div>
+                    </Link>
                     <span className={`shrink-0 font-bold tabular-nums ${accent.text}`}>
-                      {formatTaka(amount)}
+                      +{formatTaka(amount)}
                     </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-emerald-950/[0.05]">
@@ -222,6 +226,16 @@ export default function CalculatorSummary({
               </span>
             </p>
           )}
+
+          <div className="pt-2 border-t border-emerald-950/[0.05] flex items-center justify-between gap-2 text-[11px] text-stone-500">
+            <span>Credited automatically to partner balances</span>
+            <Link
+              href={`/partners?year=${year}&month=${month}`}
+              className="shrink-0 font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+            >
+              Balances →
+            </Link>
+          </div>
         </div>
       )}
 

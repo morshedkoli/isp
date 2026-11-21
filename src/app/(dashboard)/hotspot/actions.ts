@@ -70,6 +70,9 @@ export async function recordHotspotSale(input: unknown) {
     });
 
     revalidatePath('/hotspot');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly');
+    revalidatePath('/reports');
     return { success: true as const, sale, period: periodOf(date) };
   } catch (error: unknown) {
     console.error('Record hotspot sale error:', error);
@@ -124,6 +127,9 @@ export async function updateHotspotSale(id: string, input: unknown) {
     );
 
     revalidatePath('/hotspot');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly');
+    revalidatePath('/reports');
     return { success: true as const, sale, period: periodOf(date) };
   } catch (error: unknown) {
     console.error('Update hotspot sale error:', error);
@@ -151,6 +157,9 @@ export async function deleteHotspotSale(id: string) {
     });
 
     revalidatePath('/hotspot');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly');
+    revalidatePath('/reports');
     return { success: true as const };
   } catch (error: unknown) {
     console.error('Delete hotspot sale error:', error);

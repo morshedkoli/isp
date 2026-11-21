@@ -1,10 +1,9 @@
 'use server';
 
 import { PermissionAction, PermissionModule } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/authz';
 import { getErrorMessage } from '@/lib/errors';
-import { calculateMonthlyPartnerSettlement } from '@/lib/settlement';
+import { fetchAllPartnerLedgers } from '@/lib/partner-ledger';
 import { getAgentPerformanceReportData, getMonthlyReportData } from '@/lib/report-data';
 
 export async function getMonthlyReport(year: number, month: number) {
@@ -34,11 +33,7 @@ export async function getPartnerDueAging() {
   try {
     await requirePermission(PermissionModule.REPORTS, PermissionAction.VIEW);
 
-    const periods = await prisma.commissionRecord.findMany({
-      select: { year: true, month: true },
-      distinct: ['year', 'month'],
-    });
-
+    const ledgers = await fetchAllPartnerLedgers();
     const now = new Date();
     const buckets = {
       current: { count: 0, amount: 0 },
@@ -55,27 +50,26 @@ export async function getPartnerDueAging() {
       monthsElapsed: number;
     }> = [];
 
-    for (const period of periods) {
-      const settlement = await calculateMonthlyPartnerSettlement(period.year, period.month);
-      const periodEnd = new Date(period.year, period.month, 0);
-      const monthsElapsed =
-        (now.getFullYear() - periodEnd.getFullYear()) * 12 + (now.getMonth() - periodEnd.getMonth());
+    for (const partner of ledgers.list) {
+      for (const monthRow of partner.monthlyBreakdown) {
+        if (monthRow.remainingDue <= 0) continue;
 
-      for (const partner of settlement.partners) {
-        if (partner.remainingAmount <= 0) continue;
+        const periodEnd = new Date(monthRow.year, monthRow.month, 0);
+        const monthsElapsed =
+          (now.getFullYear() - periodEnd.getFullYear()) * 12 + (now.getMonth() - periodEnd.getMonth());
 
         details.push({
-          partnerName: partner.partnerName,
-          year: period.year,
-          month: period.month,
-          remainingAmount: partner.remainingAmount,
+          partnerName: partner.name,
+          year: monthRow.year,
+          month: monthRow.month,
+          remainingAmount: monthRow.remainingDue,
           monthsElapsed,
         });
 
         const bucketKey =
           monthsElapsed <= 0 ? 'current' : monthsElapsed <= 2 ? '1-2' : monthsElapsed <= 5 ? '3-5' : '6+';
         buckets[bucketKey].count += 1;
-        buckets[bucketKey].amount += partner.remainingAmount;
+        buckets[bucketKey].amount += monthRow.remainingDue;
       }
     }
 

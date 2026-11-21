@@ -6,7 +6,7 @@ import { safeCallbackUrl } from '@/lib/auth-redirect';
 
 // Pages with a "Month / Year" selector — the selected period should carry
 // over between them instead of each one defaulting back to the current month.
-const PERIOD_AWARE_PATHS = ['/dashboard', '/commissions', '/hotspot', '/expenses', '/reports', '/partners'];
+const PERIOD_AWARE_PATHS = ['/monthly', '/commissions', '/hotspot', '/expenses', '/reports', '/partners'];
 
 export async function proxy(request: NextRequest) {
   const { pathname, search, searchParams } = request.nextUrl;

@@ -16,6 +16,9 @@ import {
   Calculator,
   Receipt,
   Calendar,
+  CalendarRange,
+  Layers,
+  Wallet,
 } from 'lucide-react';
 import { getClientPeriod, type Period } from '@/lib/period';
 import PeriodSelector from '@/components/ui/PeriodSelector';
@@ -27,11 +30,13 @@ type ShellUser = {
 };
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Expenses', href: '/expenses', icon: Receipt },
-  { name: 'Hotspot', href: '/hotspot', icon: Wifi },
+  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Monthly', href: '/monthly', icon: CalendarRange },
+  { name: 'Balances & Pay', href: '/balances', icon: Wallet },
   { name: 'Commissions', href: '/commissions', icon: Calculator },
   { name: 'Partners', href: '/partners', icon: UserCheck },
+  { name: 'Expenses', href: '/expenses', icon: Receipt },
+  { name: 'Hotspot', href: '/hotspot', icon: Wifi },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -57,7 +62,12 @@ function NavItems({
     <>
       {navigation.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const itemHref = item.href === '/settings'
+        const isAccountOrOverview =
+          item.href === '/settings' ||
+          item.href === '/dashboard' ||
+          item.href === '/balances' ||
+          item.href === '/partners';
+        const itemHref = isAccountOrOverview
           ? item.href
           : `${item.href}?year=${currentYear}&month=${currentMonth}`;
 
@@ -231,20 +241,39 @@ export default function DashboardShell({
 
             {/* Center/Right: Topbar Period Selector & User Profile */}
             <div className="flex items-center gap-3 sm:gap-4">
-              {/* Month & Year Selection inside Topbar */}
-              <Suspense
-                fallback={
-                  <div className="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-white px-3 py-1.5 text-xs text-stone-400">
-                    <Calendar size={15} /> Loading period…
-                  </div>
-                }
-              >
-                <PeriodSelector
-                  basePath={pathname}
-                  fallbackPeriod={fallbackPeriod}
-                  availablePeriods={availablePeriods}
-                />
-              </Suspense>
+              {/* Month & Year Selection inside Topbar (or All-Time / Completed Months badge) */}
+              {pathname === '/dashboard' ||
+              pathname === '/balances' ||
+              pathname === '/partners' ||
+              pathname.startsWith('/partners/') ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                    <Layers size={14} className="text-emerald-600" />
+                    {pathname === '/dashboard' ? 'All-Time Totals' : 'Completed Months Only'}
+                  </span>
+                  <Link
+                    href="/monthly"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-900/10 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-xs transition-colors hover:border-emerald-600/30 hover:text-emerald-800"
+                  >
+                    <CalendarRange size={14} className="text-emerald-600" />
+                    Monthly Info
+                  </Link>
+                </div>
+              ) : pathname !== '/settings' ? (
+                <Suspense
+                  fallback={
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-white px-3 py-1.5 text-xs text-stone-400">
+                      <Calendar size={15} /> Loading period…
+                    </div>
+                  }
+                >
+                  <PeriodSelector
+                    basePath={pathname}
+                    fallbackPeriod={fallbackPeriod}
+                    availablePeriods={availablePeriods}
+                  />
+                </Suspense>
+              ) : null}
 
               {/* User Avatar */}
               <div className="hidden items-center gap-3 sm:flex rounded-full bg-emerald-50/60 ring-1 ring-emerald-900/5 px-3 py-1.5">
