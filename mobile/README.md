@@ -46,6 +46,14 @@ flutter test
 flutter build apk --release --obfuscate --split-debug-info=build/debug-info
 ```
 
+### Release signing
+
+Release builds are signed with `android/upload-keystore.jks`, using the
+passwords in `android/key.properties`. Git ignores both files. Keep a backup of
+both somewhere safe: an update must be signed with the same key, or it won't
+install over the existing app. If `key.properties` is missing, the build falls
+back to the debug key and prints a warning.
+
 Read-only check against a real database. It prints balances and monthly
 settlements as JSON and writes nothing:
 
