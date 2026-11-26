@@ -30,6 +30,27 @@ The release APK has the MongoDB connection string built in, so there's no setup
 step. A build made without `build-secrets.json` shows a setup screen instead,
 and the string typed there is kept in Android encrypted storage.
 
+## View-only logins for partners and agents
+
+PARTNER and AGENT accounts can sign in to the app as **view-only** users: they
+see every tab, but all add, edit, delete and pay controls are hidden, and the
+app refuses any write from them. The website stays admin-only.
+
+To give someone a login (or a new password), run this from `mobile/`:
+
+```powershell
+dart run tool/viewer_logins.dart Halim Tanzina Sourab Tushar
+```
+
+Each name must match a partner or a commission agent. The script prints each
+person's email and a new password once; it stores only the bcrypt hash and
+writes the change to `audit_logs`. Running it again for someone replaces
+their password.
+
+View-only is enforced by the app, not by the database: the APK contains the
+full connection string, so a technical person could still change data
+directly. Only give the APK to people you trust with that.
+
 ## Security note
 
 **The release APK contains the full database credentials.** Obfuscation does

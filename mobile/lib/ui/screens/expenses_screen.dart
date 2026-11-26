@@ -54,17 +54,21 @@ class ExpensesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repo = AppScope.of(context).repository;
+    final session = AppScope.of(context);
+    final repo = session.repository;
+    final canEdit = session.canEdit;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expenses'),
         actions: [menu, const SizedBox(width: 8)],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Expense'),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => _openForm(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Expense'),
+            )
+          : null,
       body: Column(
         children: [
           const PeriodBar(),
@@ -101,9 +105,13 @@ class ExpensesScreen extends StatelessWidget {
                       _Category(
                         info: type,
                         rows: rows.where((e) => e.type == type.key).toList(),
-                        onAdd: () => _openForm(context, type: type.key),
-                        onEdit: (e) => _openForm(context, expense: e),
-                        onDelete: (e) => _delete(context, e),
+                        onAdd: canEdit
+                            ? () => _openForm(context, type: type.key)
+                            : null,
+                        onEdit: canEdit
+                            ? (e) => _openForm(context, expense: e)
+                            : null,
+                        onDelete: canEdit ? (e) => _delete(context, e) : null,
                       ),
                   ],
                 );
@@ -120,16 +128,16 @@ class _Category extends StatelessWidget {
   const _Category({
     required this.info,
     required this.rows,
-    required this.onAdd,
-    required this.onEdit,
-    required this.onDelete,
+    this.onAdd,
+    this.onEdit,
+    this.onDelete,
   });
 
   final ExpenseTypeInfo info;
   final List<Expense> rows;
-  final VoidCallback onAdd;
-  final ValueChanged<Expense> onEdit;
-  final ValueChanged<Expense> onDelete;
+  final VoidCallback? onAdd;
+  final ValueChanged<Expense>? onEdit;
+  final ValueChanged<Expense>? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -156,11 +164,12 @@ class _Category extends StatelessWidget {
                     size: 15,
                     color: total > 0 ? AppColors.loss : AppColors.muted,
                   ),
-                  IconButton(
-                    tooltip: 'Add to ${info.title}',
-                    onPressed: onAdd,
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
+                  if (onAdd != null)
+                    IconButton(
+                      tooltip: 'Add to ${info.title}',
+                      onPressed: onAdd,
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
                 ],
               ),
             ),
@@ -168,7 +177,7 @@ class _Category extends StatelessWidget {
               const Divider(indent: 16, endIndent: 16),
               ListTile(
                 dense: true,
-                onTap: () => onEdit(e),
+                onTap: onEdit == null ? null : () => onEdit?.call(e),
                 title: Text(
                   e.description,
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -183,15 +192,16 @@ class _Category extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Money(e.amount, size: 14, weight: FontWeight.w700),
-                    IconButton(
-                      tooltip: 'Delete',
-                      onPressed: () => onDelete(e),
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: AppColors.muted,
+                    if (onDelete != null)
+                      IconButton(
+                        tooltip: 'Delete',
+                        onPressed: () => onDelete?.call(e),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                          color: AppColors.muted,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

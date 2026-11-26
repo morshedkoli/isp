@@ -108,7 +108,8 @@ class AccountMenu extends StatelessWidget {
         PopupMenuItem(
           enabled: false,
           child: Text(
-            '${session.user.name}\n${session.user.email}',
+            '${session.user.name}\n${session.user.email}'
+            '${session.canEdit ? '' : '\nView only'}',
             style: const TextStyle(color: AppColors.muted),
           ),
         ),

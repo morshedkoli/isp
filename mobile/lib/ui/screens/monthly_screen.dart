@@ -82,6 +82,7 @@ class _MonthBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final net = m.netCommission;
+    final canEdit = AppScope.of(context).canEdit;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: [
@@ -116,14 +117,16 @@ class _MonthBody extends StatelessWidget {
         ),
         SectionTitle(
           'Commission',
-          trailing: TextButton.icon(
-            onPressed: () => _editCommission(context),
-            icon: Icon(
-              m.record == null ? Icons.add : Icons.edit_outlined,
-              size: 18,
-            ),
-            label: Text(m.record == null ? 'Enter' : 'Edit'),
-          ),
+          trailing: canEdit
+              ? TextButton.icon(
+                  onPressed: () => _editCommission(context),
+                  icon: Icon(
+                    m.record == null ? Icons.add : Icons.edit_outlined,
+                    size: 18,
+                  ),
+                  label: Text(m.record == null ? 'Enter' : 'Edit'),
+                )
+              : null,
         ),
         Card(
           child: Padding(
@@ -220,7 +223,7 @@ class _MonthBody extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (p.remainingAmount > 0)
+                        if (canEdit && p.remainingAmount > 0)
                           FilledButton.tonal(
                             style: FilledButton.styleFrom(
                               minimumSize: const Size(0, 40),
