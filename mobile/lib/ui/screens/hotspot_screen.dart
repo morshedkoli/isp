@@ -55,17 +55,21 @@ class HotspotScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repo = AppScope.of(context).repository;
+    final session = AppScope.of(context);
+    final repo = session.repository;
+    final canEdit = session.canEdit;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hotspot sales'),
         actions: [menu, const SizedBox(width: 8)],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Sale'),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => _openForm(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Sale'),
+            )
+          : null,
       body: Column(
         children: [
           const PeriodBar(),
@@ -119,13 +123,17 @@ class HotspotScreen extends StatelessWidget {
                         info: hotspotPackages['SEVEN_DAY']!,
                         count: seven.fold(0, (n, s) => n + s.quantity),
                         revenue: seven.fold(0.0, (n, s) => n + s.amount),
-                        onTap: () => _openForm(context, package: 'SEVEN_DAY'),
+                        onTap: canEdit
+                            ? () => _openForm(context, package: 'SEVEN_DAY')
+                            : null,
                       ),
                       _QuickAdd(
                         info: hotspotPackages['THIRTY_DAY']!,
                         count: thirty.fold(0, (n, s) => n + s.quantity),
                         revenue: thirty.fold(0.0, (n, s) => n + s.amount),
-                        onTap: () => _openForm(context, package: 'THIRTY_DAY'),
+                        onTap: canEdit
+                            ? () => _openForm(context, package: 'THIRTY_DAY')
+                            : null,
                       ),
                     ),
                     const SectionTitle('Sales'),
@@ -143,8 +151,12 @@ class HotspotScreen extends StatelessWidget {
                               if (i > 0)
                                 const Divider(indent: 16, endIndent: 16),
                               ListTile(
-                                onTap: () => _openForm(context, sale: s),
-                                onLongPress: () => _delete(context, s),
+                                onTap: canEdit
+                                    ? () => _openForm(context, sale: s)
+                                    : null,
+                                onLongPress: canEdit
+                                    ? () => _delete(context, s)
+                                    : null,
                                 leading: CircleAvatar(
                                   backgroundColor: s.package == 'SEVEN_DAY'
                                       ? AppColors.amberSoft
@@ -212,7 +224,7 @@ class _QuickAdd extends StatelessWidget {
   final HotspotPackageInfo info;
   final int count;
   final double revenue;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -227,11 +239,12 @@ class _QuickAdd extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: Eyebrow(info.label)),
-                const Icon(
-                  Icons.add_circle,
-                  color: AppColors.emerald,
-                  size: 22,
-                ),
+                if (onTap != null)
+                  const Icon(
+                    Icons.add_circle,
+                    color: AppColors.emerald,
+                    size: 22,
+                  ),
               ],
             ),
             const SizedBox(height: 6),

@@ -9,13 +9,16 @@ import 'package:isp_admin/data/repository.dart';
 /// reloads with fresh numbers.
 class AppSession {
   AppSession({required this.user, required this.onLogout})
-    : repository = Repository(user.id);
+    : repository = Repository(user.id, canEdit: user.canEdit);
 
   final AdminUser user;
   final Repository repository;
   final Future<void> Function() onLogout;
   final ValueNotifier<Period> period = ValueNotifier(currentPeriod());
   final ValueNotifier<int> revision = ValueNotifier(0);
+
+  /// False for view-only (PARTNER / AGENT) users: hide every edit control.
+  bool get canEdit => user.canEdit;
 
   void dataChanged() => revision.value++;
 

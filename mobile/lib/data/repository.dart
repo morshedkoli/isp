@@ -15,10 +15,23 @@ import 'package:isp_admin/domain/reports.dart';
 /// `createdAt`/`updatedAt` are set by the client, calendar dates are UTC
 /// midnight. Every write is mirrored into `audit_logs` like the website does.
 class Repository {
-  Repository(this.userId);
+  Repository(this.userId, {this.canEdit = true});
 
-  /// The logged-in admin, recorded as creator and in the audit log.
+  /// The logged-in user, recorded as creator and in the audit log.
   final String userId;
+
+  /// False for view-only (PARTNER / AGENT) users: every write is refused.
+  final bool canEdit;
+
+  /// Runs a write. View-only users are refused before anything is sent.
+  Future<T> _edit<T>(Future<T> Function() action) {
+    if (!canEdit) {
+      return Future.error(const DataException(viewOnlyMessage));
+    }
+    return Database.guard(action);
+  }
+
+  static const viewOnlyMessage = 'This account is view-only.';
 
   static const _client = 'isp_admin_android';
 
@@ -78,23 +91,22 @@ class Repository {
     };
   }
 
-  Future<void> createHotspotSale(HotspotSaleInput input) =>
-      Database.guard(() async {
-        final fields = _saleFields(input);
-        final id = await _insert('hotspot_sales', {
-          ...fields,
-          'createdById': _oid(userId),
-        });
-        await _audit(
-          'CREATE',
-          'HotspotSale',
-          id,
-          newData: _pick(fields, ['package', 'quantity', 'amount']),
-        );
-      });
+  Future<void> createHotspotSale(HotspotSaleInput input) => _edit(() async {
+    final fields = _saleFields(input);
+    final id = await _insert('hotspot_sales', {
+      ...fields,
+      'createdById': _oid(userId),
+    });
+    await _audit(
+      'CREATE',
+      'HotspotSale',
+      id,
+      newData: _pick(fields, ['package', 'quantity', 'amount']),
+    );
+  });
 
   Future<void> updateHotspotSale(String id, HotspotSaleInput input) =>
-      Database.guard(() async {
+      _edit(() async {
         final old = await _findById(
           'hotspot_sales',
           id,
@@ -111,7 +123,7 @@ class Repository {
         );
       });
 
-  Future<void> deleteHotspotSale(String id) => Database.guard(() async {
+  Future<void> deleteHotspotSale(String id) => _edit(() async {
     final old = await _findById(
       'hotspot_sales',
       id,
@@ -151,7 +163,7 @@ class Repository {
     };
   }
 
-  Future<void> createExpense(ExpenseInput input) => Database.guard(() async {
+  Future<void> createExpense(ExpenseInput input) => _edit(() async {
     final fields = _expenseFields(input);
     final id = await _insert('expenses', {
       ...fields,
@@ -165,25 +177,24 @@ class Repository {
     );
   });
 
-  Future<void> updateExpense(String id, ExpenseInput input) =>
-      Database.guard(() async {
-        final old = await _findById(
-          'expenses',
-          id,
-          'This expense no longer exists.',
-        );
-        final fields = _expenseFields(input);
-        await _update('expenses', id, fields);
-        await _audit(
-          'UPDATE',
-          'Expense',
-          id,
-          oldData: _pick(old, ['description', 'amount', 'date']),
-          newData: _pick(fields, ['description', 'amount', 'date']),
-        );
-      });
+  Future<void> updateExpense(String id, ExpenseInput input) => _edit(() async {
+    final old = await _findById(
+      'expenses',
+      id,
+      'This expense no longer exists.',
+    );
+    final fields = _expenseFields(input);
+    await _update('expenses', id, fields);
+    await _audit(
+      'UPDATE',
+      'Expense',
+      id,
+      oldData: _pick(old, ['description', 'amount', 'date']),
+      newData: _pick(fields, ['description', 'amount', 'date']),
+    );
+  });
 
-  Future<void> deleteExpense(String id) => Database.guard(() async {
+  Future<void> deleteExpense(String id) => _edit(() async {
     final old = await _findById(
       'expenses',
       id,
@@ -231,7 +242,7 @@ class Repository {
     PersonKind kind,
     String personId,
     PaymentInput input,
-  ) => Database.guard(() async {
+  ) => _edit(() async {
     final fields = _paymentFields(input);
     final doc = <String, dynamic>{
       ...fields,
@@ -259,7 +270,7 @@ class Repository {
     PersonKind kind,
     String payoutId,
     PaymentInput input,
-  ) => Database.guard(() async {
+  ) => _edit(() async {
     final old = await _findById(
       _payoutCollection(kind),
       payoutId,
@@ -277,7 +288,7 @@ class Repository {
   });
 
   Future<void> deletePayment(PersonKind kind, String payoutId) =>
-      Database.guard(() async {
+      _edit(() async {
         final old = await _findById(
           _payoutCollection(kind),
           payoutId,
@@ -299,7 +310,7 @@ class Repository {
     PersonKind kind,
     String personId,
     AdjustmentInput input,
-  ) => Database.guard(() async {
+  ) => _edit(() async {
     if (!(input.amount > 0)) {
       throw const DataException('Amount must be greater than zero.');
     }
@@ -329,7 +340,7 @@ class Repository {
   });
 
   Future<void> deleteAdjustment(PersonKind kind, String adjustmentId) =>
-      Database.guard(() async {
+      _edit(() async {
         await _delete(_adjustmentCollection(kind), adjustmentId);
         await _audit(
           'DELETE',
@@ -348,7 +359,7 @@ class Repository {
     required List<CommissionSource> sources,
     required Map<String, double> agentAmounts,
     String? notes,
-  }) => Database.guard(() async {
+  }) => _edit(() async {
     final pool = sources.fold(0.0, (sum, s) => sum + s.amount);
     if (pool <= 0) {
       throw const DataException(

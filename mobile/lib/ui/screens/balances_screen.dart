@@ -341,7 +341,9 @@ class StatementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repo = AppScope.of(context).repository;
+    final session = AppScope.of(context);
+    final repo = session.repository;
+    final canEdit = session.canEdit;
     return Scaffold(
       appBar: AppBar(title: Text(name)),
       body: Loader<Balances>(
@@ -388,31 +390,35 @@ class StatementScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => _recordPayment(context, p),
-                      icon: const Icon(Icons.payments_outlined),
-                      label: Text(
-                        kind == PersonKind.partner ? 'Give money' : 'Pay agent',
+              if (canEdit) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _recordPayment(context, p),
+                        icon: const Icon(Icons.payments_outlined),
+                        label: Text(
+                          kind == PersonKind.partner
+                              ? 'Give money'
+                              : 'Pay agent',
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                        ),
+                        onPressed: () => _adjust(context, p),
+                        icon: const Icon(Icons.tune),
+                        label: const Text('Adjust'),
                       ),
-                      onPressed: () => _adjust(context, p),
-                      icon: const Icon(Icons.tune),
-                      label: const Text('Adjust'),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               if (p.monthlyBreakdown.any((m) => m.remainingDue > 0)) ...[
                 const SectionTitle('Unpaid months'),
                 Card(
@@ -451,7 +457,9 @@ class StatementScreen extends StatelessWidget {
                         if (i > 0) const Divider(indent: 16, endIndent: 16),
                         _EntryTile(
                           e,
-                          onTap: () => _entryActions(context, b, e),
+                          onTap: canEdit
+                              ? () => _entryActions(context, b, e)
+                              : null,
                         ),
                       ],
                     ],
@@ -466,9 +474,9 @@ class StatementScreen extends StatelessWidget {
 }
 
 class _EntryTile extends StatelessWidget {
-  const _EntryTile(this.e, {required this.onTap});
+  const _EntryTile(this.e, {this.onTap});
   final LedgerEntry e;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

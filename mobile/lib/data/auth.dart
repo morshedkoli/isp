@@ -4,15 +4,31 @@ import 'package:mongo_dart/mongo_dart.dart';
 
 import 'package:isp_admin/data/database.dart';
 
+/// A signed-in user. ADMINs can change data; PARTNER and AGENT accounts are
+/// view-only.
 class AdminUser {
-  const AdminUser({required this.id, required this.name, required this.email});
+  const AdminUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.role = adminRole,
+  });
   final String id;
   final String name;
   final String email;
+  final String role;
+
+  static const adminRole = 'ADMIN';
+
+  /// Roles that may sign in to the app. Only [adminRole] may change data.
+  static const allowedRoles = {adminRole, 'PARTNER', 'AGENT'};
+
+  bool get canEdit => role == adminRole;
 }
 
-/// Same rules as the web NextAuth credentials provider: only active ADMIN
-/// users, password checked against the stored bcrypt hash.
+/// Like the web NextAuth credentials provider: active users only, password
+/// checked against the stored bcrypt hash. Unlike the website, PARTNER and
+/// AGENT accounts may also sign in, as view-only users.
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
@@ -28,7 +44,7 @@ class AuthService {
         final user = await users.findOne({'email': email.trim()});
         if (user == null ||
             user['isActive'] == false ||
-            user['role'] != 'ADMIN') {
+            !AdminUser.allowedRoles.contains(user['role'])) {
           throw const DataException(_invalid);
         }
         final hash = user['password'];
@@ -57,7 +73,7 @@ class AuthService {
       final user = await users.findOne({'_id': ObjectId.fromHexString(id)});
       if (user == null ||
           user['isActive'] == false ||
-          user['role'] != 'ADMIN') {
+          !AdminUser.allowedRoles.contains(user['role'])) {
         await logout();
         return null;
       }
@@ -80,5 +96,6 @@ class AuthService {
     id: (user['_id'] as ObjectId).oid,
     name: user['name'] is String ? user['name'] as String : 'Admin',
     email: user['email'] is String ? user['email'] as String : '',
+    role: user['role'] as String,
   );
 }
