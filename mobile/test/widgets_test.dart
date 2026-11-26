@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:isp_admin/core/business_date.dart';
 import 'package:isp_admin/domain/models.dart';
+import 'package:isp_admin/domain/reports.dart';
 import 'package:isp_admin/ui/forms.dart';
 import 'package:isp_admin/ui/login_screen.dart';
+import 'package:isp_admin/ui/screens/overview_month.dart';
 import 'package:isp_admin/ui/setup_screen.dart';
 import 'package:isp_admin/ui/theme.dart';
 
@@ -49,6 +52,32 @@ void main() {
     );
     expect(find.text('Change database connection'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+  });
+
+  testWidgets('overview shows the current month before any commission', (
+    tester,
+  ) async {
+    const empty = LedgerSnapshot(
+      partners: [],
+      agents: [],
+      records: [],
+      expenses: [],
+      partnerPayouts: [],
+      partnerAdjustments: [],
+      agentPayouts: [],
+      agentAdjustments: [],
+      hotspotSales: [],
+    );
+    final m = computeMonthlySummary(empty, const Period(2026, 11));
+    await tester.pumpWidget(
+      host(SingleChildScrollView(child: CurrentMonthSection(m))),
+    );
+    expect(find.text('THIS MONTH · NOVEMBER 2026'), findsOneWidget);
+    expect(
+      find.text('Combined net · commission not entered yet'),
+      findsOneWidget,
+    );
+    expect(find.text('AGENT PAYOUTS'), findsOneWidget);
   });
 
   testWidgets('hotspot form prices from the package table', (tester) async {

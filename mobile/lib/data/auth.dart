@@ -45,7 +45,8 @@ class AuthService {
         );
         await _storage.write(key: _userKey, value: id.oid);
         return _toAdmin(user);
-      });
+        // Safe to retry: the only write just sets the last-login time.
+      }, retry: true);
 
   /// Restores a saved session, re-checking the account is still an active admin.
   Future<AdminUser?> restore() async {
@@ -61,7 +62,7 @@ class AuthService {
         return null;
       }
       return _toAdmin(user);
-    });
+    }, retry: true);
   }
 
   Future<void> logout() => _storage.delete(key: _userKey);

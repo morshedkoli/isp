@@ -9,6 +9,12 @@ class DataException implements Exception {
   String toString() => message;
 }
 
+/// A connection or driver failure, as opposed to a message the app raised on
+/// purpose (bad password, validation). Only these are worth retrying.
+class _DriverFailure extends DataException {
+  const _DriverFailure(super.message);
+}
+
 /// Owns the MongoDB connection.
 ///
 /// Release builds get the connection string at compile time through
@@ -103,17 +109,34 @@ class Database {
   /// Runs a database operation, turning driver failures into [DataException].
   /// mongo_dart reports server/socket problems as `MongoDartError`, so it is
   /// caught explicitly alongside ordinary exceptions.
-  static Future<T> guard<T>(Future<T> Function() action) async {
+  ///
+  /// With [retry], a failed attempt drops the connection and runs [action]
+  /// once more on a fresh one. Phones sleep and switch networks, which leaves
+  /// a dead socket behind. Only pass it for reads and idempotent updates: a
+  /// write that reached the server before the socket died would run twice.
+  static Future<T> guard<T>(
+    Future<T> Function() action, {
+    bool retry = false,
+  }) async {
+    try {
+      return await _attempt(action);
+    } on DataException catch (e) {
+      if (!retry || e is! _DriverFailure) rethrow;
+      return _attempt(action);
+    }
+  }
+
+  static Future<T> _attempt<T>(Future<T> Function() action) async {
     try {
       return await action().timeout(_timeout);
     } on DataException {
       rethrow;
     } on MongoDartError catch (e) {
       await instance.close();
-      throw DataException(_short(e));
+      throw _DriverFailure(_short(e));
     } on Exception catch (e) {
       await instance.close();
-      throw DataException(_short(e));
+      throw _DriverFailure(_short(e));
     }
   }
 

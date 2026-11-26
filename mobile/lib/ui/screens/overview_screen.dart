@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'package:isp_admin/core/business_date.dart';
 import 'package:isp_admin/core/format.dart';
 import 'package:isp_admin/domain/models.dart';
 import 'package:isp_admin/domain/reports.dart';
 import 'package:isp_admin/ui/app_scope.dart';
+import 'package:isp_admin/ui/screens/overview_month.dart';
 import 'package:isp_admin/ui/theme.dart';
 import 'package:isp_admin/ui/widgets.dart';
 
-/// All-time business overview — the website's Dashboard page.
+typedef _OverviewData = ({MonthlySummary month, Overview all});
+
+/// The current month first, then the all-time overview (the website's
+/// Dashboard page).
 class OverviewScreen extends StatelessWidget {
   const OverviewScreen({required this.menu, super.key});
   final Widget menu;
@@ -20,101 +25,111 @@ class OverviewScreen extends StatelessWidget {
         title: const Text('Overview'),
         actions: [menu, const SizedBox(width: 8)],
       ),
-      body: Loader<Overview>(
+      body: Loader<_OverviewData>(
         watchPeriod: false,
-        load: (_) async => computeOverview(await repo.loadSnapshot()),
-        builder: (context, o, _) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-          children: [
-            _Hero(o),
-            const SizedBox(height: 12),
-            TileRow(
-              StatTile(
-                label: 'ISP commission',
-                amount: o.totalCompanyCommission,
-                accent: AppColors.emerald,
-              ),
-              StatTile(
-                label: 'Agent payouts',
-                amount: o.totalAgentPayouts,
-                accent: AppColors.violet,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TileRow(
-              StatTile(
-                label: 'Expenses',
-                amount: o.totalExpenses,
-                accent: AppColors.loss,
-              ),
-              StatTile(
-                label: 'Hotspot',
-                amount: o.hotspotRevenue,
-                accent: AppColors.amber,
-                caption:
-                    '${o.hotspotVouchers} vouchers · ${o.sevenDayVouchers}×7d · ${o.thirtyDayVouchers}×30d',
-              ),
-            ),
-            SectionTitle(
-              'Partners',
-              trailing: Text(
-                'Payable ${formatTaka(o.totalPartnerPayable)}',
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Card(
-              child: Column(
-                children: [
-                  for (final (i, p) in o.partners.indexed) ...[
-                    if (i > 0) const Divider(indent: 16, endIndent: 16),
-                    ListTile(
-                      title: Text(
-                        p.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        '${formatPercent(p.percent)} share · given ${formatTaka(p.totalGiven)}'
-                        '${p.isActive ? '' : ' · inactive'}',
-                      ),
-                      trailing: _BalanceText(p.balance),
-                    ),
-                  ],
-                  if (o.partners.isEmpty) const EmptyNote('No partners yet'),
-                ],
-              ),
-            ),
-            const SectionTitle('Expenses by category'),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Column(
-                  children: [
-                    for (final t in expenseTypes)
-                      if ((o.expensesByType[t.key] ?? 0) > 0)
-                        FigureLine(t.title, o.expensesByType[t.key] ?? 0),
-                    const Divider(),
-                    FigureLine(
-                      'Total',
-                      o.totalExpenses,
-                      bold: true,
-                      color: AppColors.loss,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SectionTitle('Month by month'),
-            if (o.history.isEmpty) const EmptyNote('Nothing recorded yet'),
-            for (final row in o.history) _HistoryCard(row),
-          ],
-        ),
+        load: (_) async {
+          final snapshot = await repo.loadSnapshot();
+          return (
+            month: computeMonthlySummary(snapshot, currentPeriod()),
+            all: computeOverview(snapshot),
+          );
+        },
+        builder: (context, data, _) => _body(data),
       ),
+    );
+  }
+
+  Widget _body(_OverviewData data) {
+    final o = data.all;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      children: [
+        CurrentMonthSection(data.month),
+        const SectionTitle('All time'),
+        _Hero(o),
+        const SizedBox(height: 12),
+        TileRow(
+          StatTile(
+            label: 'ISP commission',
+            amount: o.totalCompanyCommission,
+            accent: AppColors.emerald,
+          ),
+          StatTile(
+            label: 'Agent payouts',
+            amount: o.totalAgentPayouts,
+            accent: AppColors.violet,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TileRow(
+          StatTile(
+            label: 'Expenses',
+            amount: o.totalExpenses,
+            accent: AppColors.loss,
+          ),
+          StatTile(
+            label: 'Hotspot',
+            amount: o.hotspotRevenue,
+            accent: AppColors.amber,
+            caption:
+                '${o.hotspotVouchers} vouchers · ${o.sevenDayVouchers}×7d · ${o.thirtyDayVouchers}×30d',
+          ),
+        ),
+        SectionTitle(
+          'Partners',
+          trailing: Text(
+            'Payable ${formatTaka(o.totalPartnerPayable)}',
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Card(
+          child: Column(
+            children: [
+              for (final (i, p) in o.partners.indexed) ...[
+                if (i > 0) const Divider(indent: 16, endIndent: 16),
+                ListTile(
+                  title: Text(
+                    p.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    '${formatPercent(p.percent)} share · given ${formatTaka(p.totalGiven)}'
+                    '${p.isActive ? '' : ' · inactive'}',
+                  ),
+                  trailing: _BalanceText(p.balance),
+                ),
+              ],
+              if (o.partners.isEmpty) const EmptyNote('No partners yet'),
+            ],
+          ),
+        ),
+        const SectionTitle('Expenses by category'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              children: [
+                for (final t in expenseTypes)
+                  if ((o.expensesByType[t.key] ?? 0) > 0)
+                    FigureLine(t.title, o.expensesByType[t.key] ?? 0),
+                const Divider(),
+                FigureLine(
+                  'Total',
+                  o.totalExpenses,
+                  bold: true,
+                  color: AppColors.loss,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SectionTitle('Month by month'),
+        if (o.history.isEmpty) const EmptyNote('Nothing recorded yet'),
+        for (final row in o.history) _HistoryCard(row),
+      ],
     );
   }
 }

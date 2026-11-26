@@ -37,7 +37,7 @@ class Repository {
   /// Every collection the balances, monthly and overview screens need.
   /// Every collection the balances, monthly and overview screens need.
   Future<LedgerSnapshot> loadSnapshot() =>
-      Database.guard(() => Docs.readSnapshot(_find));
+      Database.guard(() => Docs.readSnapshot(_find), retry: true);
 
   Future<List<HotspotSale>> hotspotSales(Period period) =>
       Database.guard(() async {
@@ -46,7 +46,7 @@ class Repository {
         });
         rows.sort(_newestFirst);
         return rows.map(_sale).toList();
-      });
+      }, retry: true);
 
   Future<List<Expense>> expenses(Period period) => Database.guard(() async {
     final rows = await _find('expenses', {
@@ -55,7 +55,7 @@ class Repository {
     });
     rows.sort(_newestFirst);
     return rows.map(_expense).toList();
-  });
+  }, retry: true);
 
   // ─── Hotspot writes ─────────────────────────────────────────────────────────
 
