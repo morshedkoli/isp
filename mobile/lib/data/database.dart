@@ -1,0 +1,114 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:mongo_dart/mongo_dart.dart';
+
+/// Thrown for connection or data problems the UI should show as a message.
+class DataException implements Exception {
+  const DataException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+/// Owns the MongoDB connection. The connection string is entered once on the
+/// setup screen and kept in Android encrypted storage — never in source code.
+class Database {
+  Database._();
+  static final Database instance = Database._();
+
+  static const _urlKey = 'mongo_url';
+  static const Duration _timeout = Duration(seconds: 20);
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
+  Db? _db;
+  String? _url;
+
+  Future<String?> savedUrl() => _storage.read(key: _urlKey);
+
+  Future<void> forgetUrl() async {
+    await close();
+    await _storage.delete(key: _urlKey);
+  }
+
+  /// Connect with [url] and, if it works, remember it.
+  Future<void> connectAndSave(String url) async {
+    await _open(url.trim());
+    await _storage.write(key: _urlKey, value: url.trim());
+  }
+
+  /// Reconnect with the saved URL. Returns false when none is saved.
+  Future<bool> connectSaved() async {
+    final url = await savedUrl();
+    if (url == null || url.isEmpty) return false;
+    await _open(url);
+    return true;
+  }
+
+  Future<void> _open(String url) async {
+    if (!url.startsWith('mongodb://') && !url.startsWith('mongodb+srv://')) {
+      throw const DataException(
+        'The connection string must start with mongodb:// or mongodb+srv://',
+      );
+    }
+    await close();
+    try {
+      final db = await Db.create(url).timeout(_timeout);
+      await db.open(secure: url.startsWith('mongodb+srv://')).timeout(_timeout);
+      _db = db;
+      _url = url;
+    } on MongoDartError catch (e) {
+      throw DataException('Could not connect to the database: ${_short(e)}');
+    } on Exception catch (e) {
+      throw DataException('Could not connect to the database: ${_short(e)}');
+    }
+  }
+
+  Future<void> close() async {
+    final db = _db;
+    _db = null;
+    if (db != null && db.isConnected) {
+      try {
+        await db.close();
+      } on Exception {
+        // Closing a dead connection is not worth surfacing.
+      }
+    }
+  }
+
+  /// The live connection, reconnecting once if the socket dropped (phones
+  /// sleep and change networks constantly).
+  Future<Db> get db async {
+    final current = _db;
+    if (current != null && current.isConnected && current.state == State.open) {
+      return current;
+    }
+    final url = _url ?? await savedUrl();
+    if (url == null) throw const DataException('No database is configured.');
+    await _open(url);
+    return _db!;
+  }
+
+  Future<DbCollection> collection(String name) async =>
+      (await db).collection(name);
+
+  /// Runs a database operation, turning driver failures into [DataException].
+  /// mongo_dart reports server/socket problems as `MongoDartError`, so it is
+  /// caught explicitly alongside ordinary exceptions.
+  static Future<T> guard<T>(Future<T> Function() action) async {
+    try {
+      return await action().timeout(_timeout);
+    } on DataException {
+      rethrow;
+    } on MongoDartError catch (e) {
+      await instance.close();
+      throw DataException(_short(e));
+    } on Exception catch (e) {
+      await instance.close();
+      throw DataException(_short(e));
+    }
+  }
+
+  static String _short(Object e) {
+    final text = e.toString();
+    return text.length > 160 ? '${text.substring(0, 160)}…' : text;
+  }
+}
