@@ -11,7 +11,7 @@ import 'package:isp_admin/ui/widgets.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({required this.onChangeDatabase, super.key});
-  final VoidCallback onChangeDatabase;
+  final VoidCallback? onChangeDatabase;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -69,7 +69,7 @@ class _HomeShellState extends State<HomeShell> {
 
 class AccountMenu extends StatelessWidget {
   const AccountMenu({required this.onChangeDatabase, super.key});
-  final VoidCallback onChangeDatabase;
+  final VoidCallback? onChangeDatabase;
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +101,7 @@ class AccountMenu extends StatelessWidget {
                   'This signs you out and forgets the saved connection string.',
               action: 'Change',
             );
-            if (ok) onChangeDatabase();
+            if (ok) onChangeDatabase?.call();
         }
       },
       itemBuilder: (_) => [
@@ -113,7 +113,11 @@ class AccountMenu extends StatelessWidget {
           ),
         ),
         const PopupMenuItem(value: 'refresh', child: Text('Refresh all')),
-        const PopupMenuItem(value: 'database', child: Text('Change database')),
+        if (onChangeDatabase != null)
+          const PopupMenuItem(
+            value: 'database',
+            child: Text('Change database'),
+          ),
         const PopupMenuItem(value: 'logout', child: Text('Sign out')),
       ],
     );

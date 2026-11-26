@@ -11,7 +11,7 @@ class LoginScreen extends StatefulWidget {
     super.key,
   });
   final void Function(AdminUser user) onLoggedIn;
-  final VoidCallback onChangeDatabase;
+  final VoidCallback? onChangeDatabase;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -154,10 +154,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text('Sign in'),
                   ),
                   const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: widget.onChangeDatabase,
-                    child: const Text('Change database connection'),
-                  ),
+                  if (widget.onChangeDatabase != null)
+                    TextButton(
+                      onPressed: widget.onChangeDatabase,
+                      child: const Text('Change database connection'),
+                    ),
                   SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
                 ],
               ),

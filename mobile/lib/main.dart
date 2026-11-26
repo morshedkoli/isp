@@ -84,6 +84,10 @@ class _IspAdminAppState extends State<IspAdminApp> {
   @override
   Widget build(BuildContext context) {
     final session = _session;
+    // A build with its own connection string has nothing to change.
+    final VoidCallback? changeDatabase = Database.hasBuiltInUrl
+        ? null
+        : _changeDatabase;
     final Widget home = switch (_stage) {
       _Stage.starting => const _Splash(),
       _Stage.setup => SetupScreen(
@@ -91,17 +95,17 @@ class _IspAdminAppState extends State<IspAdminApp> {
       ),
       _Stage.login => LoginScreen(
         onLoggedIn: _startSession,
-        onChangeDatabase: _changeDatabase,
+        onChangeDatabase: changeDatabase,
       ),
       _Stage.offline => _Offline(
         message: _offlineMessage,
         onRetry: _boot,
-        onChangeDatabase: _changeDatabase,
+        onChangeDatabase: changeDatabase,
       ),
       _Stage.home =>
         session == null
             ? const _Splash()
-            : HomeShell(onChangeDatabase: _changeDatabase),
+            : HomeShell(onChangeDatabase: changeDatabase),
     };
     final app = MaterialApp(
       title: 'GrameenWiFi Admin',
@@ -141,7 +145,7 @@ class _Offline extends StatelessWidget {
   });
   final String message;
   final VoidCallback onRetry;
-  final VoidCallback onChangeDatabase;
+  final VoidCallback? onChangeDatabase;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -165,10 +169,11 @@ class _Offline extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(onPressed: onRetry, child: const Text('Try again')),
-            TextButton(
-              onPressed: onChangeDatabase,
-              child: const Text('Use a different connection'),
-            ),
+            if (onChangeDatabase != null)
+              TextButton(
+                onPressed: onChangeDatabase,
+                child: const Text('Use a different connection'),
+              ),
           ],
         ),
       ),
