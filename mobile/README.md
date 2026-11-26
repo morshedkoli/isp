@@ -24,18 +24,22 @@ Every write also adds an `audit_logs` row, the same as the website
 ## First run
 
 1. Install `build/app/outputs/flutter-apk/app-release.apk` on the phone.
-2. Paste the MongoDB connection string (the website's `DATABASE_URL`). It is
-   stored in Android encrypted storage on that phone only. It is never
-   compiled into the APK.
-3. Sign in with an **ADMIN** account, the same email and password as the website.
+2. Sign in with an **ADMIN** account, the same email and password as the website.
+
+The release APK has the MongoDB connection string built in, so there's no setup
+step. A build made without `build-secrets.json` shows a setup screen instead,
+and the string typed there is kept in Android encrypted storage.
 
 ## Security note
 
-The phone holds the full database credentials. Anyone who has the unlocked
-phone, or who extracts that string from it, gets full read/write access to the
-database. Use a dedicated Atlas database user with a strong password for the
-app, so you can revoke it on its own. Also restrict Atlas Network Access where
-you can.
+**The release APK contains the full database credentials.** Obfuscation does
+not hide them: anyone who gets the APK file can pull the connection string out
+and read or change the whole database, skipping the admin login. So:
+
+- Share the APK only with the admins, never publicly.
+- Give the app its own Atlas database user, so you can revoke it on its own
+  without touching the website. If an APK leaks, change that user's password
+  and rebuild.
 
 ## Develop
 
@@ -43,7 +47,13 @@ you can.
 flutter pub get
 flutter analyze
 flutter test
-flutter build apk --release --obfuscate --split-debug-info=build/debug-info
+flutter build apk --release --obfuscate --split-debug-info=build/debug-info --dart-define-from-file=build-secrets.json
+```
+
+`build-secrets.json` (git-ignored) holds the connection string that gets built in:
+
+```json
+{ "MONGO_URL": "mongodb+srv://..." }
 ```
 
 ### Release signing

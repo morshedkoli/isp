@@ -9,11 +9,20 @@ class DataException implements Exception {
   String toString() => message;
 }
 
-/// Owns the MongoDB connection. The connection string is entered once on the
-/// setup screen and kept in Android encrypted storage — never in source code.
+/// Owns the MongoDB connection.
+///
+/// Release builds get the connection string at compile time through
+/// `--dart-define-from-file=build-secrets.json` (git-ignored), so users only
+/// sign in. Without it, the string is entered once on the setup screen and
+/// kept in Android encrypted storage. It is never in source code.
 class Database {
   Database._();
   static final Database instance = Database._();
+
+  static const String _builtInUrl = String.fromEnvironment('MONGO_URL');
+
+  /// True when this build carries its own connection string.
+  static bool get hasBuiltInUrl => _builtInUrl.isNotEmpty;
 
   static const _urlKey = 'mongo_url';
   static const Duration _timeout = Duration(seconds: 20);
@@ -22,7 +31,8 @@ class Database {
   Db? _db;
   String? _url;
 
-  Future<String?> savedUrl() => _storage.read(key: _urlKey);
+  Future<String?> savedUrl() async =>
+      hasBuiltInUrl ? _builtInUrl : _storage.read(key: _urlKey);
 
   Future<void> forgetUrl() async {
     await close();

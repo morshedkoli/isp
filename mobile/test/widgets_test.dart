@@ -38,6 +38,19 @@ void main() {
     expect(find.text('Enter your email and password.'), findsOneWidget);
   });
 
+  testWidgets('login screen hides the database option when it is built in', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(),
+        home: LoginScreen(onLoggedIn: (_) {}, onChangeDatabase: null),
+      ),
+    );
+    expect(find.text('Change database connection'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+  });
+
   testWidgets('hotspot form prices from the package table', (tester) async {
     HotspotSaleInput? saved;
     await tester.pumpWidget(

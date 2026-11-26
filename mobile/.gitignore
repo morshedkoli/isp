@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Compile-time secrets (MONGO_URL) for release builds
+build-secrets.json
